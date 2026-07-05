@@ -20,6 +20,7 @@ export const metadata: Metadata = {
   description: "Offline-first restaurant POS with real-time KOT sync between counter and kitchen tablet.",
   keywords: ["restaurant", "POS", "KOT", "billing", "kitchen display", "restaurant management"],
   authors: [{ name: "ServingSync" }],
+  manifest: "/manifest.json",
   openGraph: {
     title: "ServingSync POS",
     description: "Offline-first restaurant POS with real-time KOT sync",

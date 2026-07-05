@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   UtensilsCrossed, Mail, Lock, ArrowRight, Loader2, Eye, EyeOff,
-  Shield, Store, AlertCircle, Sparkles,
+  AlertCircle,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -48,11 +48,6 @@ export function LoginScreen({ onLoggedOut }: LoginScreenProps) {
     } finally {
       setLoading(false)
     }
-  }
-
-  const quickFill = (e: string, p: string) => {
-    setEmail(e)
-    setPassword(p)
   }
 
   return (
@@ -118,7 +113,7 @@ export function LoginScreen({ onLoggedOut }: LoginScreenProps) {
                 <button
                   type="button"
                   onClick={() => setShowPass(!showPass)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200"
                 >
                   {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
@@ -131,7 +126,7 @@ export function LoginScreen({ onLoggedOut }: LoginScreenProps) {
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }}
                   exit={{ opacity: 0, height: 0 }}
-                  className="flex items-center gap-2 text-sm text-rose-700 bg-rose-50 border border-rose-200 px-3 py-2 rounded-lg"
+                  className="flex items-center gap-2 text-sm text-rose-400 bg-rose-950/50 border border-rose-800 px-3 py-2 rounded-lg"
                 >
                   <AlertCircle className="w-4 h-4 shrink-0" />
                   {error}
@@ -151,22 +146,6 @@ export function LoginScreen({ onLoggedOut }: LoginScreenProps) {
               )}
             </Button>
           </form>
-
-          {/* Quick login — super admin only */}
-          <div className="mt-5 pt-5 border-t border-white/10">
-            <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1">
-              <Sparkles className="w-3 h-3" /> Quick Login
-            </p>
-            <div className="grid grid-cols-1 gap-1.5">
-              <QuickLogin
-                icon={Shield}
-                label="Super Admin"
-                sublabel="All shops · Full access"
-                color="from-slate-700 to-slate-900"
-                onClick={() => quickFill('super@servingsync.com', 'admin123')}
-              />
-            </div>
-          </div>
         </Card>
 
         <p className="text-center text-[10px] text-slate-500 mt-4">
@@ -174,19 +153,5 @@ export function LoginScreen({ onLoggedOut }: LoginScreenProps) {
         </p>
       </motion.div>
     </div>
-  )
-}
-
-function QuickLogin({ icon: Icon, label, sublabel, color, onClick }: { icon: any; label: string; sublabel: string; color: string; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`flex flex-col items-center gap-0.5 py-2.5 rounded-lg bg-gradient-to-br ${color} text-white text-[11px] font-semibold shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all`}
-    >
-      <Icon className="w-4 h-4" />
-      {label}
-      <span className="text-[9px] font-normal opacity-80">{sublabel}</span>
-    </button>
   )
 }

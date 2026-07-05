@@ -1,142 +1,158 @@
-# ServingSync POS — Desktop App (.exe) Build Guide
+# ServingSync POS — Build Guide
 
-This guide shows you how to build the ServingSync POS desktop app for Windows (.exe), macOS (.dmg), and Linux (.AppImage).
+## Your License Keys
 
-## Prerequisites
+20 license keys have been generated. Each is valid for 365 days from activation.
+See `download/license-keys.txt` for the full list.
 
-1. **Node.js 18+** (or Bun)
-2. **npm** or **bun** package manager
-3. For Windows .exe: Windows machine (or Linux with Wine)
-4. For macOS .dmg: macOS machine
+**Super Admin Login:**
+- Email: `super@servingsync.com`
+- Password: `admin123`
 
-## Quick Build
+---
 
-### Install dependencies
-```bash
-npm install
-# or
-bun install
+## Windows .exe Build
+
+The .exe has been built in `release/win-unpacked/`. 
+
+### To run on Windows:
+1. Copy the entire `release/win-unpacked/` folder to a Windows computer
+2. Double-click `ServingSync POS.exe`
+3. The app will:
+   - Auto-create a local SQLite database in `%APPDATA%/ServingSync POS/db/`
+   - Ask for a license key (use one from license-keys.txt)
+   - Open the login screen
+   - Login with super@servingsync.com / admin123
+
+### To build a proper installer (.exe setup) on Windows:
+1. Copy this entire project to a Windows computer
+2. Double-click `build-exe.bat`
+3. This will:
+   - Install dependencies
+   - Generate Prisma client
+   - Build Next.js standalone
+   - Create `ServingSync POS Setup 1.0.0.exe` (NSIS installer)
+4. The installer creates desktop + Start Menu shortcuts
+
+### Files in the .exe package:
+```
+release/win-unpacked/
+├── ServingSync POS.exe        ← Main app (double-click to run)
+├── resources/
+│   ├── app.asar               ← Electron main process
+│   ├── standalone/            ← Next.js server (bundled)
+│   │   ├── server.js
+│   │   ├── public/            ← Background images, etc.
+│   │   └── node_modules/
+│   └── db-template/           ← Fresh database template
+├── locales/                   ← Language packs
+└── (Electron runtime files)
 ```
 
-### Generate Prisma client
+---
+
+## Android APK Build
+
+### Option 1: PWA (Easiest — no APK needed)
+
+The app is a PWA (Progressive Web App). On Android:
+1. Open Chrome on your Android phone
+2. Go to your app URL (e.g. `http://your-server:3000`)
+3. Tap the 3 dots menu → "Add to Home screen"
+4. The app installs like a native app with its own icon
+5. Works offline, full screen, no browser bar
+
+### Option 2: Generate APK with PWABuilder
+
+1. Deploy your app to a public URL (e.g. using Vercel, Netlify, or ngrok)
+2. Go to https://www.pwabuilder.com
+3. Enter your app URL
+4. Click "Build My PWA" → select "Android"
+5. Download the generated `.apk` file
+6. Install on any Android device (enable "Install from unknown sources")
+
+### Option 3: Generate APK with Bubblewrap (CLI)
+
 ```bash
-npm run db:generate
+# Install Bubblewrap CLI
+npm install -g @bubblewrap/cli
+
+# Initialize from your deployed PWA URL
+bubblewrap init --manifest=https://your-app-url/manifest.json
+
+# Build the APK
+bubblewrap build
+
+# The APK will be in app-release-signed.apk
 ```
 
-### Build the Next.js standalone server
+### Option 4: Wrap with Capacitor (most control)
+
 ```bash
+# Install Capacitor
+npm install @capacitor/core @capacitor/cli
+npm install @capacitor/android
+
+# Initialize
+npx cap init ServingSync POS com.servingsync.pos
+
+# Build the web app
 npm run build
+
+# Add Android platform
+npx cap add android
+
+# Copy web assets
+npx cap copy
+
+# Open in Android Studio to build APK
+npx cap open android
+# In Android Studio: Build → Build APK
 ```
 
-### Build the desktop app
+---
+
+## Deploying to a Public URL (required for APK)
+
+For the APK to work, your app needs to be accessible from a URL:
+
+### Option A: Vercel (free)
 ```bash
-# Windows .exe (run on Windows)
-npm run dist:win
-
-# macOS .dmg (run on macOS)
-npm run dist:mac
-
-# Linux .AppImage (run on Linux)
-npm run dist:linux
+npm install -g vercel
+vercel
 ```
 
-The installer will be created in the `release/` folder:
-- Windows: `release/ServingSync POS Setup 1.0.0.exe`
-- macOS: `release/ServingSync POS-1.0.0.dmg`
-- Linux: `release/ServingSync POS-1.0.0.AppImage`
-
-## What the Desktop App Does
-
-1. **Bundles the Next.js standalone server** inside the Electron app
-2. **Auto-creates a local SQLite database** in `%APPDATA%/ServingSync POS/db/` on first launch
-3. **Runs the server on port 3210** (internal, not exposed)
-4. **Opens a native desktop window** pointing to the local server
-5. **System tray integration** — minimize to tray, quick open
-6. **No internet required** — fully offline after installation
-
-## Development Mode
-
-To test the Electron shell during development (without building):
+### Option B: ngrok (temporary tunnel)
 ```bash
-# Terminal 1: Start Next.js dev server
-npm run dev
-
-# Terminal 2: Start Electron (connects to dev server)
-npm run electron:dev
+ngrok http 3000
+# Gives you a public URL like https://abc123.ngrok.io
 ```
 
-## Distribution
-
-### Windows NSIS Installer
-The default Windows build creates an NSIS installer (`ServingSync POS Setup.exe`) that:
-- Lets users choose installation directory
-- Creates desktop shortcut
-- Creates Start Menu shortcut
-- Includes uninstaller
-
-### Portable Version
-For a portable .exe (no install needed), change the win target in `package.json`:
-```json
-"win": {
-  "target": ["portable"]
-}
+### Option C: Your own server
+Deploy the standalone build to any Node.js server:
+```bash
+NODE_ENV=production node .next/standalone/server.js
 ```
 
-### Code Signing (optional, for distribution)
-To sign your Windows app:
-1. Get a code signing certificate
-2. Set environment variables:
-   ```bash
-   set CSC_LINK=path/to/certificate.pfx
-   set CSC_KEY_PASSWORD=yourpassword
-   ```
-3. Run `npm run dist:win`
+---
 
-## Architecture
+## Database
 
+The app uses SQLite — a single file at `db/custom.db`.
+- On Windows .exe: `%APPDATA%/ServingSync POS/db/custom.db`
+- On dev: `/home/z/my-project/db/custom.db`
+
+The database is auto-created on first launch with:
+- 2 sample shops (Spice Garden, Belly Bytes)
+- 25 menu items per shop
+- 11 tables per shop (10 + virtual Direct Counter)
+- 1 super admin user
+- 20 license keys
+
+### Reset database:
+```bash
+rm db/custom.db
+npx prisma db push
+bun run scripts/seed-simple.ts
+bun run scripts/seed-license.ts
 ```
-┌─────────────────────────────────────┐
-│         Electron Shell              │
-│  ┌───────────────────────────────┐  │
-│  │    BrowserWindow (Chromium)   │  │
-│  │    ┌─────────────────────┐    │  │
-│  │    │  Next.js Frontend   │    │  │
-│  │    │  (React + Tailwind) │    │  │
-│  │    └─────────────────────┘    │  │
-│  └───────────────────────────────┘  │
-│               ↕ HTTP                │
-│  ┌───────────────────────────────┐  │
-│  │   Next.js Standalone Server   │  │
-│  │   (port 3210, internal)       │  │
-│  │   ┌─────────────────────┐     │  │
-│  │   │   Prisma + SQLite   │     │  │
-│  │   │   (local DB file)   │     │  │
-│  │   └─────────────────────┘     │  │
-│  └───────────────────────────────┘  │
-└─────────────────────────────────────┘
-```
-
-## File Structure
-
-```
-electron/
-  main.js          — Electron main process (window, tray, server launcher)
-package.json       — electron-builder config in "build" section
-prisma/db/         — SQLite database template (copied on first launch)
-.next/standalone/  — Bundled Next.js server (created by npm run build)
-release/           — Output directory for installers
-```
-
-## Troubleshooting
-
-### "Next.js standalone server not found"
-Run `npm run build` first — it creates the `.next/standalone/` directory.
-
-### "Prisma client not found"
-Run `npm run db:generate` to generate the Prisma client.
-
-### Database issues
-The app creates a fresh database in `%APPDATA%/ServingSync POS/db/custom.db` on first launch. To reset: delete this file and restart the app.
-
-### Port 3210 already in use
-Change `NEXT_PORT` in `electron/main.js` to a different port.
