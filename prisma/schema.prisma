@@ -1,0 +1,117 @@
+// Restaurant POS System — Prisma schema
+// SQLite for offline-first local storage. All data stays on the restaurant machine.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ---- Menu ---------------------------------------------------------------
+model MenuItem {
+  id        String   @id @default(cuid())
+  name      String
+  category  String   @default("General")
+  price     Float
+  available Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  orderItems OrderItem[]
+
+  @@index([category])
+}
+
+// ---- Tables -------------------------------------------------------------
+model RestaurantTable {
+  id             String  @id @default(cuid())
+  number         Int     @unique
+  name           String  @default("Table")
+  capacity       Int     @default(4)
+  status         String  @default("available") // available | occupied
+  currentOrderId String? @unique
+
+  // All historical orders for this table
+  orders        Order[]         @relation("TableOrders")
+  currentOrder  Order?          @relation("TableCurrentOrder", fields: [currentOrderId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ---- Orders -------------------------------------------------------------
+// status lifecycle:
+//   open       — accumulating items at the table
+//   sent       — KOT pushed to kitchen
+//   preparing  — kitchen acknowledged
+//   ready      — kitchen marked all items ready
+//   served     — counter acknowledged delivery
+//   billed     — bill generated, awaiting payment
+//   paid       — bill cleared → moves to history, table released
+model Order {
+  id          String   @id @default(cuid())
+  tableId     String
+  status      String   @default("open")
+  type        String   @default("dine_in") // dine_in | takeaway
+  guests      Int      @default(1)
+  waiterName  String?
+  notes       String?
+  kotPrinted  Boolean  @default(false)
+  billPrinted Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  table        RestaurantTable @relation("TableOrders", fields: [tableId], references: [id])
+  asCurrent    RestaurantTable? @relation("TableCurrentOrder")
+  items        OrderItem[]
+  bill         Bill?
+
+  @@index([tableId])
+  @@index([status])
+}
+
+// ---- Order Items --------------------------------------------------------
+model OrderItem {
+  id         String   @id @default(cuid())
+  orderId    String
+  menuItemId String
+  name       String   // snapshot of menu name at time of order
+  price      Float    // snapshot of price
+  quantity   Int      @default(1)
+  status     String   @default("pending") // pending | preparing | ready | served | cancelled
+  notes      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  order    Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItem MenuItem @relation(fields: [menuItemId], references: [id])
+
+  @@index([orderId])
+  @@index([status])
+}
+
+// ---- Bills (history) ----------------------------------------------------
+model Bill {
+  id            String   @id @default(cuid())
+  billNo        Int      @unique
+  orderId       String   @unique
+  tableNumber   Int
+  subtotal      Float
+  taxRate       Float    @default(0.0)
+  taxAmount     Float    @default(0.0)
+  discount      Float    @default(0.0)
+  serviceCharge Float    @default(0.0)
+  total         Float
+  paymentMode   String   @default("cash") // cash | card | upi | other
+  paymentStatus String   @default("paid")
+  paidAt        DateTime @default(now())
+  createdAt     DateTime @default(now())
+
+  order Order @relation(fields: [orderId], references: [id])
+
+  @@index([paidAt])
+  @@index([tableNumber])
+}
