@@ -356,3 +356,77 @@ Stage Summary:
 - Audit log tracks all user actions (login, orders, bills, settings, etc.)
 - Electron .exe setup complete — run `npm run dist:win` on Windows to build installer
 - All existing features intact: multi-shop, 3 themes, Direct Order, Zomato, 2-copy printing, item images, bill/KOT style editor
+
+---
+Task ID: license-redesign-fastbill
+Agent: main
+Task: License key system, landing redesign, Zomato as top-level mode, bill before KOT, pending orders sub-tabs
+
+Work Log:
+- Added LicenseKey + LicenseActivation Prisma models
+- Built 3 license API routes:
+  - GET /api/license/status — check current activation
+  - POST /api/license/validate — check if key is valid (auto-validates as user types)
+  - POST /api/license/activate — activate a key (marks as used, creates activation with expiry)
+- Seeded 5 demo license keys (1 year, 30 days, 7 days, etc.)
+- Built LicenseActivationScreen component:
+  - Dark gradient background with shield icon
+  - License key input with live validation (shows ✓ valid or ✗ invalid as you type)
+  - 3 demo key buttons (1 Year / 30 Days / 7 Days) — click to auto-fill
+  - "Activate License" button (disabled until valid key entered)
+  - Toast confirmation on activation
+- Built LicenseExpiredScreen — shows when license expires, with "Enter New Key" button
+- Built useLicenseCheck hook — checks license status on app load
+- Wired license gate into page.tsx: license check → login → shop picker → home
+- Redesigned landing page:
+  - Direct Order card FIRST (featured, amber/orange gradient, ⚡ Fast badge)
+  - Counter Mode (brand gradient)
+  - Zomato Orders (rose/red gradient, "Zomato" badge) — NEW top-level mode
+  - Kitchen Mode (emerald gradient)
+  - Bills & History (violet gradient)
+  - Management (slate gradient, full-width, admin only)
+  - License badge in header ("365d left") — green if >30 days, red if <30
+  - "Enter new license key" link at bottom
+  - Compact hero with welcome message
+- Built standalone ZomatoMode component (src/components/zomato/ZomatoMode.tsx):
+  - Top-level mode accessible from landing page (not just Management)
+  - Header with Zomato badge, shop switcher, Manual + Sync buttons
+  - Sub-tabs: All / Pending / Done — pending orders sub-tab at top
+  - Order cards with full details + Push to Kitchen + status flow buttons
+  - Auto-polls every 20s for new orders
+- Updated Counter Mode:
+  - canBill now includes 'open' status — Generate Bill enabled BEFORE sending KOT
+  - Added PendingOrdersSubTab component at top of table grid view
+  - Shows orders currently in kitchen (sent/preparing/ready) with color-coded cards
+  - Click any pending order to jump to its table
+- Built PendingOrdersSubTab shared component:
+  - Fetches orders with sent/preparing/ready statuses
+  - Color-coded cards: amber (sent), blue (preparing), emerald (ready)
+  - Shows table name, item count, total, time ago, status badge
+  - Auto-refreshes every 15s
+  - Expandable (shows 4 by default, "Show all" for more)
+- Zomato mode also has Pending sub-tab (All / Pending / Done tabs)
+- Updated RBAC: both Admin and Staff can access Zomato mode
+
+Verification (Agent Browser end-to-end):
+- ✓ App loads → License activation screen (dark gradient, shield icon)
+- ✓ 3 demo key buttons visible (1 Year / 30 Days / 7 Days)
+- ✓ Click 1 Year demo key → auto-fills input → validation shows "Valid key — 365 days"
+- ✓ Click Activate → "License activated! Valid for 365 days." toast
+- ✓ After activation → Login screen appears
+- ✓ Login as Super Admin → Shop picker (both shops)
+- ✓ Pick Spice Garden → redesigned home with 6 mode cards
+- ✓ Direct Order card FIRST with ⚡ Fast badge (amber gradient)
+- ✓ Zomato Orders card with "Zomato" badge (rose gradient)
+- ✓ License badge "365d left" in header
+- ✓ "Enter new license key" link at bottom
+- ✓ Click Zomato card → ZomatoMode with All/Pending/Done sub-tabs
+- ✓ Sync creates orders, Pending tab shows count
+- ✓ Lint passes cleanly
+
+Stage Summary:
+- License system: 1-year activation, blocks app if not activated or expired
+- Landing redesigned: Direct Order first, Zomato as top-level mode
+- Fast billing: Generate Bill enabled before KOT sent (for quick takeaway)
+- Pending orders sub-tab: Counter + Zomato show kitchen-pending orders at top
+- 6 mode cards: Direct Order, Counter, Zomato, Kitchen, History, Management

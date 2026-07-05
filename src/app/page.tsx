@@ -5,27 +5,31 @@ import { motion } from 'framer-motion'
 import {
   UtensilsCrossed, Wifi, WifiOff, ArrowRight,
   Store, LayoutDashboard, Zap, Store as StoreIcon, ChevronDown, CheckCircle2,
-  Receipt, ChefHat,
+  Receipt, ChefHat, Bike, ShieldCheck, Clock,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { useSession } from '@/lib/session'
 import { LoginScreen } from '@/components/auth/LoginScreen'
+import { LicenseActivationScreen, LicenseExpiredScreen, useLicenseCheck } from '@/components/auth/LicenseScreen'
 import CounterMode from '@/components/counter/CounterMode'
 import KitchenMode from '@/components/kitchen/KitchenMode'
 import HistoryMode from '@/components/history/HistoryMode'
 import ManagementMode from '@/components/management/ManagementMode'
+import ZomatoMode from '@/components/zomato/ZomatoMode'
 
-type Mode = 'home' | 'counter' | 'kitchen' | 'history' | 'management' | 'direct'
+type Mode = 'home' | 'counter' | 'kitchen' | 'history' | 'management' | 'direct' | 'zomato'
 
 // RBAC: which modes each role can access
-const STAFF_MODES: Mode[] = ['counter', 'direct', 'kitchen', 'history']
-const ADMIN_MODES: Mode[] = ['counter', 'direct', 'kitchen', 'history', 'management']
+const STAFF_MODES: Mode[] = ['counter', 'direct', 'kitchen', 'history', 'zomato']
+const ADMIN_MODES: Mode[] = ['counter', 'direct', 'kitchen', 'history', 'zomato', 'management']
 
 export default function Home() {
   const { user, currentShop, loading } = useSession()
+  const { status: licenseStatus, expiresAt, daysLeft, recheck } = useLicenseCheck()
   const [mode, setMode] = useState<Mode>('home')
+  const [showLicenseScreen, setShowLicenseScreen] = useState(false)
 
   // Restore saved mode once session is loaded
   useEffect(() => {
@@ -53,7 +57,31 @@ export default function Home() {
     if (typeof window !== 'undefined') localStorage.removeItem('posMode')
   }
 
-  // Loading splash
+  // License gate — shows activation screen first
+  if (licenseStatus === 'loading') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="w-12 h-12 rounded-xl bg-brand-gradient animate-pulse" />
+      </div>
+    )
+  }
+  if (licenseStatus === 'not_activated' || showLicenseScreen) {
+    return (
+      <LicenseActivationScreen
+        onActivated={() => { recheck(); setShowLicenseScreen(false) }}
+      />
+    )
+  }
+  if (licenseStatus === 'expired') {
+    return (
+      <LicenseExpiredScreen
+        expiresAt={expiresAt || ''}
+        onReactivate={() => setShowLicenseScreen(true)}
+      />
+    )
+  }
+
+  // Session loading
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
@@ -67,10 +95,6 @@ export default function Home() {
     return <LoginScreen onLoggedOut={() => setMode('home')} />
   }
 
-  // Logged in but no shop selected → show inline shop picker on home
-  // (This handles super admin who hasn't picked a shop yet)
-  // For single-shop users, shop is auto-selected in session.tsx
-
   // RBAC: check if user can access the current mode
   const allowedModes = user.role === 'admin' ? ADMIN_MODES : STAFF_MODES
 
@@ -81,12 +105,13 @@ export default function Home() {
     if (mode === 'history') return <HistoryMode onExit={backHome} />
     if (mode === 'management') return <ManagementMode onExit={backHome} />
     if (mode === 'direct') return <CounterMode onExit={backHome} directMode />
+    if (mode === 'zomato') return <ZomatoMode onExit={backHome} />
   }
 
-  return <HomeScreen onSelect={enterMode} />
+  return <HomeScreen onSelect={enterMode} daysLeft={daysLeft} onReactivate={() => setShowLicenseScreen(true)} />
 }
 
-function HomeScreen({ onSelect }: { onSelect: (m: Mode) => void }) {
+function HomeScreen({ onSelect, daysLeft, onReactivate }: { onSelect: (m: Mode) => void; daysLeft: number | null; onReactivate: () => void }) {
   const { user, currentShop, shops, selectShop, logout } = useSession()
   const [online, setOnline] = useState(true)
   const [shopPickerOpen, setShopPickerOpen] = useState(false)
@@ -113,6 +138,15 @@ function HomeScreen({ onSelect }: { onSelect: (m: Mode) => void }) {
   // Define all modes with RBAC filtering
   const allModes = [
     {
+      key: 'direct' as Mode,
+      title: 'Direct Order',
+      subtitle: 'Quick takeaway — skip table assignment',
+      icon: Zap,
+      tags: ['Fast checkout', 'Takeaway', 'Walk-in'],
+      featured: true,
+      roles: ['admin', 'staff'] as const,
+    },
+    {
       key: 'counter' as Mode,
       title: 'Counter Mode',
       subtitle: 'Take orders, manage tables, print KOT & bills',
@@ -121,12 +155,11 @@ function HomeScreen({ onSelect }: { onSelect: (m: Mode) => void }) {
       roles: ['admin', 'staff'] as const,
     },
     {
-      key: 'direct' as Mode,
-      title: 'Direct Order',
-      subtitle: 'Quick takeaway — skip table assignment',
-      icon: Zap,
-      tags: ['Fast checkout', 'Takeaway', 'Walk-in'],
-      featured: true,
+      key: 'zomato' as Mode,
+      title: 'Zomato Orders',
+      subtitle: 'Live Zomato orders — push to kitchen in 1 click',
+      icon: Bike,
+      tags: ['Sync', 'Push to kitchen', 'Status flow'],
       roles: ['admin', 'staff'] as const,
     },
     {
@@ -148,9 +181,9 @@ function HomeScreen({ onSelect }: { onSelect: (m: Mode) => void }) {
     {
       key: 'management' as Mode,
       title: 'Management',
-      subtitle: 'Back-office: dashboard, inventory, finance, Zomato, reports',
+      subtitle: 'Back-office: dashboard, inventory, finance, reports, audit',
       icon: LayoutDashboard,
-      tags: ['Dashboard', 'Inventory', 'Finance', 'Reports', 'Zomato', 'Backup'],
+      tags: ['Dashboard', 'Inventory', 'Finance', 'Reports', 'Audit', 'Backup'],
       span: 'md:col-span-3',
       roles: ['admin'] as const,
     },
@@ -160,7 +193,7 @@ function HomeScreen({ onSelect }: { onSelect: (m: Mode) => void }) {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-orange-50/30 to-rose-50/30">
-      {/* Header with inline shop picker */}
+      {/* Header with inline shop picker + license badge */}
       <header className="border-b border-slate-200/70 bg-white/70 backdrop-blur-xl sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -175,6 +208,17 @@ function HomeScreen({ onSelect }: { onSelect: (m: Mode) => void }) {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {/* License badge */}
+            {daysLeft !== null && (
+              <Badge
+                variant="outline"
+                className={`text-[10px] ${daysLeft < 30 ? 'bg-rose-50 text-rose-700 border-rose-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}
+                title={daysLeft < 30 ? 'License expiring soon!' : 'License active'}
+              >
+                <ShieldCheck className="w-3 h-3 mr-1" />
+                {daysLeft}d left
+              </Badge>
+            )}
             {/* Inline shop picker */}
             {shops.length > 1 && (
               <div className="relative">
@@ -220,73 +264,86 @@ function HomeScreen({ onSelect }: { onSelect: (m: Mode) => void }) {
         </div>
       </header>
 
-      {/* Hero */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 pt-10 sm:pt-14 pb-8 text-center">
+      {/* Hero — compact */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 pt-8 sm:pt-10 pb-6 text-center">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
+          transition={{ duration: 0.4 }}
         >
-          <Badge variant="secondary" className="mb-3 bg-brand-soft text-brand-text border-brand/20 hover:bg-brand-soft">
-            {currentShop?.code} · {currentShop?.name}
+          <Badge variant="secondary" className="mb-2 bg-brand-soft text-brand-text border-brand/20 hover:bg-brand-soft">
+            {currentShop?.name}
           </Badge>
-          <h2 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-slate-900 mb-3">
+          <h2 className="text-2xl sm:text-4xl font-extrabold tracking-tight text-slate-900 mb-1">
             Welcome, {user?.name.split(' ')[0]}.
           </h2>
-          <p className="text-sm sm:text-base text-slate-600 max-w-2xl mx-auto">
+          <p className="text-xs sm:text-sm text-slate-600 max-w-2xl mx-auto">
             {isAdmin
-              ? 'Full access: Counter, Kitchen, Direct Order, History & Management.'
-              : 'Counter, Direct Order, Kitchen & History access. Ask admin for management features.'}
+              ? 'Full access to all modes including Management.'
+              : 'Counter, Direct Order, Zomato, Kitchen & History access.'}
           </p>
         </motion.div>
       </section>
 
-      {/* Mode cards — RBAC filtered */}
-      <section className="max-w-6xl mx-auto px-4 sm:px-6 pb-16 grid gap-4 sm:gap-6 md:grid-cols-3">
+      {/* Mode cards — RBAC filtered, featured first */}
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 pb-16 grid gap-3 sm:gap-4 md:grid-cols-3">
         {visibleModes.map((m, i) => (
           <motion.div
             key={m.key}
-            initial={{ opacity: 0, y: 24 }}
+            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.1 + i * 0.06 }}
+            transition={{ duration: 0.3, delay: 0.05 + i * 0.05 }}
             className={m.span}
           >
             <Card
               onClick={() => onSelect(m.key)}
-              className={`group cursor-pointer relative overflow-hidden border-0 shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 pointer-events-auto ${
-                m.featured ? 'ring-2 ring-brand ring-offset-2' : ''
-              } ${m.span ? 'min-h-[180px]' : ''}`}
+              className={`group cursor-pointer relative overflow-hidden border-0 shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 pointer-events-auto ${
+                m.featured ? 'ring-2 ring-amber-400 ring-offset-2' : ''
+              } ${m.span ? 'min-h-[160px]' : 'min-h-[140px]'}`}
             >
               {m.featured ? (
                 <>
                   <div className="absolute inset-0 bg-gradient-to-br from-amber-400 via-orange-500 to-rose-500 opacity-95 pointer-events-none" />
-                  <div className="absolute top-3 right-3 pointer-events-none">
-                    <Badge className="bg-white text-orange-700 border-0 text-[10px] font-bold uppercase">Fast</Badge>
+                  <div className="absolute top-2 right-2 pointer-events-none">
+                    <Badge className="bg-white text-orange-700 border-0 text-[9px] font-bold uppercase">⚡ Fast</Badge>
                   </div>
                 </>
+              ) : m.key === 'zomato' ? (
+                <>
+                  <div className="absolute inset-0 bg-gradient-to-br from-rose-500 to-red-600 opacity-95 pointer-events-none" />
+                  <div className="absolute top-2 right-2 pointer-events-none">
+                    <Badge className="bg-white text-rose-700 border-0 text-[9px] font-bold uppercase">Zomato</Badge>
+                  </div>
+                </>
+              ) : m.key === 'kitchen' ? (
+                <div className="absolute inset-0 bg-gradient-to-br from-emerald-500 to-teal-600 opacity-95 pointer-events-none" />
+              ) : m.key === 'management' ? (
+                <div className="absolute inset-0 bg-gradient-to-br from-slate-700 to-slate-900 opacity-95 pointer-events-none" />
+              ) : m.key === 'history' ? (
+                <div className="absolute inset-0 bg-gradient-to-br from-violet-500 to-fuchsia-600 opacity-95 pointer-events-none" />
               ) : (
                 <div className="absolute inset-0 bg-brand-gradient opacity-90 pointer-events-none" />
               )}
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.25),transparent_55%)] pointer-events-none" />
-              <div className={`relative p-5 sm:p-7 text-white ${m.span ? 'md:flex md:items-center md:gap-6' : ''}`}>
-                <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center ring-1 ring-white/30 ${m.span ? 'mb-0 md:shrink-0' : 'mb-4'}`}>
-                  <m.icon className="w-6 h-6 sm:w-7 sm:h-7" />
+              <div className={`relative p-4 sm:p-5 text-white ${m.span ? 'md:flex md:items-center md:gap-5' : ''}`}>
+                <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center ring-1 ring-white/30 ${m.span ? 'mb-0 md:shrink-0' : 'mb-3'}`}>
+                  <m.icon className="w-5 h-5 sm:w-6 sm:h-6" />
                 </div>
                 <div className={m.span ? 'flex-1' : ''}>
-                  <h3 className={`font-bold mb-1 ${m.span ? 'text-2xl sm:text-3xl' : 'text-xl sm:text-2xl'}`}>{m.title}</h3>
-                  <p className="text-xs sm:text-sm text-white/85 mb-3 sm:mb-4 min-h-[36px]">{m.subtitle}</p>
-                  <div className="flex flex-wrap gap-1.5 mb-4">
-                    {m.tags.map((t) => (
+                  <h3 className={`font-bold mb-0.5 ${m.span ? 'text-xl sm:text-2xl' : 'text-base sm:text-lg'}`}>{m.title}</h3>
+                  <p className="text-[11px] sm:text-xs text-white/85 mb-2.5 line-clamp-1">{m.subtitle}</p>
+                  <div className="flex flex-wrap gap-1 mb-2.5">
+                    {m.tags.slice(0, m.span ? 6 : 3).map((t) => (
                       <span
                         key={t}
-                        className="text-[10px] sm:text-[11px] font-medium px-2 py-0.5 sm:py-1 rounded-md bg-white/15 backdrop-blur-sm ring-1 ring-white/20"
+                        className="text-[9px] sm:text-[10px] font-medium px-1.5 py-0.5 rounded bg-white/15 backdrop-blur-sm ring-1 ring-white/20"
                       >
                         {t}
                       </span>
                     ))}
                   </div>
-                  <div className="flex items-center gap-2 text-xs sm:text-sm font-semibold">
-                    Launch <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 group-hover:translate-x-1 transition-transform" />
+                  <div className="flex items-center gap-1 text-xs font-semibold">
+                    Open <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
                   </div>
                 </div>
               </div>
@@ -294,6 +351,20 @@ function HomeScreen({ onSelect }: { onSelect: (m: Mode) => void }) {
           </motion.div>
         ))}
       </section>
+
+      {/* Footer with license info */}
+      <footer className="max-w-6xl mx-auto px-4 sm:px-6 pb-8">
+        <div className="flex items-center justify-center gap-4 text-[10px] text-slate-400">
+          {daysLeft !== null && (
+            <span className="flex items-center gap-1">
+              <ShieldCheck className="w-3 h-3" /> License: {daysLeft} days remaining
+            </span>
+          )}
+          <button onClick={onReactivate} className="hover:text-slate-700 underline">
+            Enter new license key
+          </button>
+        </div>
+      </footer>
     </div>
   )
 }

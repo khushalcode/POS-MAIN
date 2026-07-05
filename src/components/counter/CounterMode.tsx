@@ -28,6 +28,7 @@ import { OrderCart } from './OrderCart'
 import { BillingDialog } from './BillingDialog'
 import { PrintPreview } from '@/components/shared/PrintPreview'
 import { KOTReceipt } from '@/components/shared/Receipts'
+import { PendingOrdersSubTab } from '@/components/shared/PendingOrdersSubTab'
 import { useRestaurantSync } from '@/hooks/use-restaurant-sync'
 import { useShopFetch } from '@/hooks/use-shop-fetch'
 import { useSession } from '@/lib/session'
@@ -406,10 +407,8 @@ export default function CounterMode({ onExit, directMode }: CounterModeProps) {
     const freeCount = visibleTables.filter((t) => t.status === 'available').length
 
     const startDirectOrder = async () => {
-      // Find the virtual Direct Counter table (number 0)
       let directTable = tables.find((t) => t.number === 0)
       if (!directTable) {
-        // Create it if missing
         const res = await shopFetch('/api/tables', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -450,16 +449,12 @@ export default function CounterMode({ onExit, directMode }: CounterModeProps) {
             </div>
           </div>
 
-          {/* Direct order hint banner */}
-          <div className="mb-4 p-3 rounded-xl bg-gradient-to-r from-violet-50 to-fuchsia-50 border border-violet-200 flex items-center gap-2.5 text-sm">
-            <div className="w-8 h-8 rounded-lg bg-violet-500 flex items-center justify-center text-white shrink-0">
-              <Receipt className="w-4 h-4" />
-            </div>
-            <div className="flex-1">
-              <p className="font-semibold text-violet-900">No-table restaurant? Use Direct Order</p>
-              <p className="text-xs text-violet-700">For takeaway, walk-in, or counter sales without assigning a table.</p>
-            </div>
-          </div>
+          {/* Sub-tabs: Tables / Pending in Kitchen */}
+          <PendingOrdersSubTab shopFetch={shopFetch} onPickOrder={(orderId) => {
+            // Open the table that owns this order
+            const table = tables.find((t) => t.currentOrderId === orderId)
+            if (table) openTable(table as any)
+          }} />
 
           <TableGrid tables={visibleTables} onSelectTable={openTable} />
         </main>
@@ -470,7 +465,8 @@ export default function CounterMode({ onExit, directMode }: CounterModeProps) {
   // ----- Order detail view -----
   const canEdit = order?.status === 'open'
   const canSend = order && (order.status === 'open' || order.status === 'sent') && (order.items || []).length > 0
-  const canBill = order && ['sent', 'preparing', 'ready', 'served', 'billed'].includes(order.status) &&
+  // Allow billing as soon as there's at least one non-cancelled item — even before KOT is sent
+  const canBill = order && ['open', 'sent', 'preparing', 'ready', 'served', 'billed'].includes(order.status) &&
     (order.items || []).some((i) => i.status !== 'cancelled')
 
   return (

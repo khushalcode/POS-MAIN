@@ -310,6 +310,26 @@ model ShopSetting {
   shop Shop @relation(fields: [shopId], references: [id], onDelete: Cascade)
 }
 
+// ---- License Keys -------------------------------------------------------
+// Valid keys that can be activated. Seed a few demo keys.
+model LicenseKey {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  duration  Int      @default(365) // days of validity once activated
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+// ---- License Activation (singleton — the active license on this machine) ----
+model LicenseActivation {
+  id           String   @id @default(cuid())
+  key          String   @unique
+  activatedAt  DateTime @default(now())
+  expiresAt    DateTime
+  machineId    String?
+  createdAt    DateTime @default(now())
+}
+
 // ---- Audit Log ----------------------------------------------------------
 model AuditLog {
   id        String   @id @default(cuid())
