@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
+import { Toaster as ToasterSonner } from "@/components/ui/sonner";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -18,20 +19,10 @@ export const metadata: Metadata = {
   description: "Offline-first restaurant POS with real-time KOT sync between counter and kitchen tablet.",
   keywords: ["restaurant", "POS", "KOT", "billing", "kitchen display", "restaurant management"],
   authors: [{ name: "ServingSync" }],
-  icons: {
-    icon: "https://z-cdn.chatglm.cn/z-ai/static/logo.svg",
-  },
   openGraph: {
-    title: "Z.ai Code Scaffold",
-    description: "AI-powered development with modern React stack",
-    url: "https://chat.z.ai",
-    siteName: "Z.ai",
+    title: "ServingSync POS",
+    description: "Offline-first restaurant POS with real-time KOT sync",
     type: "website",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Z.ai Code Scaffold",
-    description: "AI-powered development with modern React stack",
   },
 };
 
@@ -47,6 +38,7 @@ export default function RootLayout({
       >
         {children}
         <Toaster />
+        <ToasterSonner />
       </body>
     </html>
   );
