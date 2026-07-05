@@ -4,10 +4,10 @@ import { useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import { Search, Plus } from 'lucide-react'
 import { Input } from '@/components/ui/input'
-import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { formatCurrency } from '@/lib/format'
+import { getItemEmoji } from '@/lib/menu-images'
 import type { MenuItem } from '@/lib/types'
 
 interface MenuPickerProps {
@@ -64,7 +64,7 @@ export function MenuPicker({ items, onAdd, disabled }: MenuPickerProps) {
         ))}
       </div>
 
-      {/* Items grid */}
+      {/* Items grid — with images */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-2 overflow-y-auto flex-1 pr-1">
         {filtered.map((item, i) => (
           <motion.div
@@ -74,21 +74,48 @@ export function MenuPicker({ items, onAdd, disabled }: MenuPickerProps) {
             transition={{ duration: 0.15, delay: i * 0.01 }}
           >
             <Card
-              className={`p-3 cursor-pointer transition-all hover:-translate-y-0.5 hover:shadow-md ${
+              className={`overflow-hidden cursor-pointer transition-all hover:-translate-y-0.5 hover:shadow-md ${
                 disabled || !item.available ? 'opacity-50 pointer-events-none' : ''
               } ${cardColor(item.category)}`}
               onClick={() => !disabled && item.available && onAdd(item, 1)}
             >
-              <div className="flex items-start justify-between gap-1">
-                <div className="flex-1 min-w-0">
-                  <h4 className="font-semibold text-sm text-slate-900 leading-tight truncate">{item.name}</h4>
-                  <p className="text-[10px] text-slate-500 mt-0.5 truncate">{item.category}</p>
-                </div>
-                <Plus className="w-4 h-4 text-slate-400 shrink-0" />
+              {/* Image / emoji header */}
+              <div className="h-16 bg-gradient-to-br from-slate-50 to-slate-100/80 flex items-center justify-center relative overflow-hidden">
+                {item.image ? (
+                  <img
+                    src={item.image}
+                    alt={item.name}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      // Hide broken images and fall back to emoji
+                      const target = e.currentTarget
+                      target.style.display = 'none'
+                      const parent = target.parentElement
+                      if (parent && !parent.querySelector('.fallback-emoji')) {
+                        const span = document.createElement('span')
+                        span.className = 'fallback-emoji text-3xl'
+                        span.textContent = getItemEmoji(item.name)
+                        parent.appendChild(span)
+                      }
+                    }}
+                  />
+                ) : (
+                  <span className="text-3xl">{getItemEmoji(item.name)}</span>
+                )}
+                <Plus className="w-4 h-4 text-slate-500 absolute top-1.5 right-1.5 bg-white/80 rounded-full p-0.5" />
+                {!item.available && (
+                  <div className="absolute inset-0 bg-rose-900/40 flex items-center justify-center">
+                    <Badge variant="outline" className="text-[9px] bg-rose-50 text-rose-700 border-rose-200">NA</Badge>
+                  </div>
+                )}
               </div>
-              <div className="flex items-center justify-between mt-2">
-                <span className="font-bold text-sm text-slate-900">{formatCurrency(item.price)}</span>
-                {!item.available && <Badge variant="outline" className="text-[9px] bg-rose-50 text-rose-700 border-rose-200">NA</Badge>}
+              {/* Info */}
+              <div className="p-2">
+                <h4 className="font-semibold text-[13px] text-slate-900 leading-tight truncate">{item.name}</h4>
+                <div className="flex items-center justify-between mt-1">
+                  <span className="font-bold text-sm text-slate-900">{formatCurrency(item.price)}</span>
+                  <span className="text-[10px] text-slate-500">{item.unit}</span>
+                </div>
               </div>
             </Card>
           </motion.div>

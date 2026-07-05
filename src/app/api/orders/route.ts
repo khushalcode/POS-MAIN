@@ -17,10 +17,10 @@ export async function GET(req: NextRequest) {
 }
 
 // POST /api/orders — create a new open order for a table
-// Body: { tableId, type?, guests?, waiterName?, notes? }
+// Body: { tableId, type?, guests?, waiterName?, notes?, customerName? }
 export async function POST(req: NextRequest) {
   const body = await req.json()
-  const { tableId, type = 'dine_in', guests = 1, waiterName, notes } = body
+  const { tableId, type = 'dine_in', guests = 1, waiterName, notes, customerName } = body
   if (!tableId) {
     return NextResponse.json({ error: 'tableId is required' }, { status: 400 })
   }
@@ -45,6 +45,7 @@ export async function POST(req: NextRequest) {
         type,
         guests: Number(guests),
         waiterName,
+        customerName,
         notes,
         status: 'open',
       },

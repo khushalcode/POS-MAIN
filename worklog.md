@@ -71,3 +71,77 @@ Stage Summary:
 - All features verified working end-to-end with real data persistence
 - Total Prisma models: 13 (was 5, added 8: Customer, Supplier, Purchase, Expense, MoneyIn, MoneyOut, AppUser, ShopSetting)
 - Restaurant POS now has both front-of-house (Counter/Kitchen) AND back-office (Management) capabilities
+
+---
+Task ID: enhancement-4
+Agent: main
+Task: Add Direct Order flow, 2-copy printing, item images, and Zomato Orders integration
+
+Work Log:
+- Extended Prisma schema: added `image` to MenuItem, `customerName` to Order, `type: direct` to Order, new ZomatoOrder model (with status lifecycle: new/accepted/preparing/ready/dispatched/delivered/cancelled)
+- Pushed schema + regenerated Prisma client
+- Seeded virtual "Direct Counter" table (number 0) — hidden from table grid, used internally for direct/takeaway orders
+- Built 4 new API endpoints:
+  - /api/zomato (GET list, POST manual create)
+  - /api/zomato/[id] (PATCH status, DELETE)
+  - /api/zomato/sync (POST — simulates fetching from Zomato with sample data + 50% random chance per sample)
+  - /api/zomato/[id]/push (POST — converts Zomato order to internal KOT, links them, marks Zomato as 'accepted')
+- Updated menu API to handle the new `image` field (POST and PUT)
+- Updated orders API to accept `customerName` and `type: direct`
+- Rebuilt PrintPreview component:
+  - Added `copies[]` prop — array of {label, banner}
+  - Tab switcher in modal to preview each copy
+  - "Print All N Copies" button — opens print dialog with all copies concatenated (page-break between each)
+  - Banner header on each copy (e.g. "*** KITCHEN COPY ***")
+- Updated KOT print in CounterMode: 2 copies (Kitchen Copy + Customer Copy), title shows "Direct Order" for direct orders
+- Updated Bill print in BillingDialog: 2 copies (Customer Copy + Restaurant Copy)
+- Updated Bill reprint in HistoryMode: 2 copies (Customer Copy + Restaurant Copy)
+- Rebuilt MenuPicker component: now shows item image (uploaded) OR emoji fallback, with broken-image graceful fallback to emoji
+- Created `src/lib/menu-images.ts` — shared `getItemEmoji()` helper with extended food keyword matching
+- Added Direct Order button in Counter Mode table list view:
+  - Prominent violet/fuchsia gradient button at top
+  - Info banner explaining "No-table restaurant? Use Direct Order"
+  - Filters out the virtual "Direct Counter" table (#0) from visible grid
+  - Sets order type to 'direct' on creation
+- Updated Menu Management ItemForm with image upload:
+  - 80x80 preview thumbnail (shows uploaded image OR emoji fallback)
+  - "Upload" button — opens file picker, validates <500KB, converts to base64 data URI
+  - "Remove" button to clear image
+  - URL input field as alternative (for hosted images)
+  - Help text: "PNG/JPG up to 500KB. Falls back to emoji if no image."
+- Built ZomatoPage in Management:
+  - Header with "ZOMATO" red badge + counts (new/active/delivered today)
+  - Filter dropdown by status
+  - "Sync" button — fetches new orders from Zomato (simulated)
+  - "Manual" button — opens dialog to manually add a Zomato order with item parser ("Item Name xQty @Price" per line)
+  - Order cards showing: ZOM-ID, status badge, time, delivery type icon, customer info, address, itemized list, totals breakdown, "Pushed to kitchen" badge if linked
+  - Action buttons per status: Push to Kitchen (new) → Start Preparing (accepted) → Mark Ready (preparing) → Dispatch (ready, delivery) / Picked Up (ready, pickup) → Delivered (dispatched)
+  - Auto-polls every 20s for new orders (simulating webhook)
+  - New orders highlighted with rose ring
+- Wired Zomato page into Management sidebar (Overview section, between Dashboard and Reports)
+- Updated Counter Mode card tags on home page: 'Table grid', 'Direct Order', '2-copy print', 'Billing'
+- Updated Management card tags: 'Dashboard', 'Inventory', 'Finance', 'Reports', 'Zomato', 'Backup'
+
+Verification (Agent Browser):
+- ✓ Home page shows updated Counter card with "Direct Order" and "2-copy print" tags
+- ✓ Counter Mode shows prominent "Direct Order / Takeaway" button + info banner
+- ✓ Virtual Direct Counter table (#0) is hidden from the visible table grid (10 tables shown, not 11)
+- ✓ Clicking Direct Order opens order view, sets type=direct
+- ✓ Adding items + Send to Kitchen opens KOT dialog with "Kitchen Copy" and "Customer Copy" tabs
+- ✓ "Print All 2 Copies" button visible
+- ✓ Title shows "KOT — Direct Order" (not table number) for direct orders
+- ✓ Management sidebar shows "Zomato Orders" item with bike icon
+- ✓ Zomato page loads with empty state, "Sync" + "Manual" buttons
+- ✓ Syncing creates Zomato orders with full details (ZOM-1001 through ZOM-1007 in test)
+- ✓ Each order card shows: ID, status, time, customer, address, items, totals breakdown
+- ✓ "Push to Kitchen" button works — order status changes from New to Accepted, "Pushed to kitchen" badge appears
+- ✓ Menu Management Add Item dialog shows image Upload button + URL input + 80x80 preview
+- ✓ Lint passes cleanly
+- ✓ Dev server compiles without errors
+
+Stage Summary:
+- 4 new user-facing features added: Direct Order, 2-copy printing, item images, Zomato Orders
+- 4 new API routes for Zomato integration (CRUD + sync + push-to-kitchen)
+- PrintPreview upgraded to support multi-copy printing with banner headers
+- MenuPicker upgraded to display real images with emoji fallback
+- All existing functionality intact (Counter/Kitchen/History/Management modes work as before)

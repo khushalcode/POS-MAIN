@@ -23,6 +23,7 @@ export interface MenuItem {
   cost: number
   stock: number
   unit: string
+  image?: string | null
   available: boolean
   createdAt: string
   updatedAt: string
@@ -45,9 +46,10 @@ export interface Order {
   id: string
   tableId: string
   status: OrderStatus
-  type: 'dine_in' | 'takeaway'
+  type: 'dine_in' | 'takeaway' | 'direct'
   guests: number
   waiterName?: string | null
+  customerName?: string | null
   notes?: string | null
   kotPrinted: boolean
   billPrinted: boolean
@@ -232,4 +234,29 @@ export interface DashboardData {
     otherOut: number
     net: number
   }
+}
+
+// ─── Zomato Order ───
+export type ZomatoStatus = 'new' | 'accepted' | 'preparing' | 'ready' | 'dispatched' | 'delivered' | 'cancelled'
+
+export interface ZomatoOrder {
+  id: string
+  zomatoOrderId: string
+  customerName: string
+  customerPhone?: string | null
+  deliveryType: 'delivery' | 'pickup'
+  address?: string | null
+  items: string // JSON
+  subtotal: number
+  taxAmount: number
+  packagingCharge: number
+  deliveryFee: number
+  discount: number
+  total: number
+  paymentMode: 'prepaid' | 'cod'
+  status: ZomatoStatus
+  notes?: string | null
+  internalOrderId?: string | null
+  createdAt: string
+  updatedAt: string
 }

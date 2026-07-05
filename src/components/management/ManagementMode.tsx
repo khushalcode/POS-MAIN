@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   ArrowLeft, Menu as MenuIcon, X, LayoutDashboard, UtensilsCrossed,
   Users, Truck, ShoppingCart, Wallet, TrendingUp, TrendingDown,
-  BarChart3, Settings, UserCog, Database, Bell,
+  BarChart3, Settings, UserCog, Database, Bell, Bike,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -35,6 +35,7 @@ function PageSkeleton() {
 }
 
 const DashboardPage = dynamic(() => import('./pages/DashboardPage'), { loading: PageSkeleton })
+const ZomatoPage = dynamic(() => import('./pages/ZomatoPage'), { loading: PageSkeleton })
 const MenuPage = dynamic(() => import('./pages/MenuPage'), { loading: PageSkeleton })
 const CustomersPage = dynamic(() => import('./pages/CustomersPage'), { loading: PageSkeleton })
 const SuppliersPage = dynamic(() => import('./pages/SuppliersPage'), { loading: PageSkeleton })
@@ -64,6 +65,7 @@ const NAV_SECTIONS: NavSection[] = [
     title: 'Overview',
     items: [
       { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, color: 'text-blue-600 bg-blue-50' },
+      { id: 'zomato', label: 'Zomato Orders', icon: Bike, color: 'text-rose-600 bg-rose-50' },
       { id: 'reports', label: 'Reports', icon: BarChart3, color: 'text-violet-600 bg-violet-50' },
     ],
   },
@@ -124,6 +126,7 @@ export default function ManagementMode({ onExit }: ManagementModeProps) {
   const renderPage = () => {
     switch (nav.currentPage) {
       case 'dashboard': return <DashboardPage />
+      case 'zomato': return <ZomatoPage />
       case 'menu': return <MenuPage />
       case 'customers': return <CustomersPage />
       case 'suppliers': return <SuppliersPage />

@@ -4,6 +4,7 @@ import { create } from 'zustand'
 
 export type ManagementPage =
   | 'dashboard'
+  | 'zomato'
   | 'menu'
   | 'customers'
   | 'suppliers'

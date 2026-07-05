@@ -57,7 +57,7 @@ function HomeScreen({ onSelect }: { onSelect: (m: Mode) => void }) {
       icon: Store,
       gradient: 'from-orange-500 to-rose-500',
       glow: 'shadow-orange-500/30',
-      tags: ['Table grid', 'Menu', 'KOT print', 'Billing'],
+      tags: ['Table grid', 'Direct Order', '2-copy print', 'Billing'],
     },
     {
       key: 'kitchen' as Mode,
@@ -80,11 +80,11 @@ function HomeScreen({ onSelect }: { onSelect: (m: Mode) => void }) {
     {
       key: 'management' as Mode,
       title: 'Management',
-      subtitle: 'Back-office: dashboard, inventory, finance, reports',
+      subtitle: 'Back-office: dashboard, inventory, finance, reports, Zomato orders',
       icon: LayoutDashboard,
       gradient: 'from-slate-700 to-slate-900',
       glow: 'shadow-slate-700/40',
-      tags: ['Dashboard', 'Inventory', 'Finance', 'Reports', 'Backup'],
+      tags: ['Dashboard', 'Inventory', 'Finance', 'Reports', 'Zomato', 'Backup'],
       span: 'md:col-span-3',
     },
   ]

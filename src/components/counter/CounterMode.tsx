@@ -120,11 +120,13 @@ export default function CounterMode({ onExit }: CounterModeProps) {
   })
 
   // ----- Table actions -----
-  const openTable = async (t: RestaurantTable) => {
+  const openTable = async (t: RestaurantTable & { type?: string }) => {
     setSelectedTable(t)
     setGuests(1)
     setWaiterName('')
     setOrderNotes('')
+    const isDirect = (t as any).type === 'direct' || t.number === 0
+    const orderType = isDirect ? 'direct' : 'dine_in'
     if (t.currentOrder) {
       // Existing order — load it fully
       const res = await fetch(`/api/orders/${t.currentOrder.id}`)
@@ -139,7 +141,7 @@ export default function CounterMode({ onExit }: CounterModeProps) {
         const res = await fetch('/api/orders', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ tableId: t.id, guests: 1 }),
+          body: JSON.stringify({ tableId: t.id, guests: 1, type: orderType }),
         })
         if (!res.ok) {
           const e = await res.json()
@@ -370,23 +372,68 @@ export default function CounterMode({ onExit }: CounterModeProps) {
 
   // ----- Table list view -----
   if (!selectedTable) {
+    // Filter out the virtual "Direct Counter" table (number 0) from the grid
+    const visibleTables = tables.filter((t) => t.number !== 0)
+    const occupiedCount = visibleTables.filter((t) => t.status === 'occupied').length
+    const freeCount = visibleTables.filter((t) => t.status === 'available').length
+
+    const startDirectOrder = async () => {
+      // Find the virtual Direct Counter table (number 0)
+      let directTable = tables.find((t) => t.number === 0)
+      if (!directTable) {
+        // Create it if missing
+        const res = await fetch('/api/tables', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ number: 0, name: 'Direct Counter', capacity: 0 }),
+        })
+        if (res.ok) {
+          const data = await res.json()
+          directTable = data.table
+        }
+      }
+      if (directTable) {
+        openTable({ ...directTable, type: 'direct' } as any)
+      }
+    }
+
     return (
       <div className="min-h-screen bg-slate-50">
         <Header onExit={onExit} role="counter" connected={sync.connected} />
         <main className="max-w-7xl mx-auto px-4 md:px-6 py-6">
-          <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
             <div>
               <h1 className="text-2xl font-bold text-slate-900">Tables</h1>
               <p className="text-sm text-slate-500">
-                {tables.filter((t) => t.status === 'occupied').length} occupied ·{' '}
-                {tables.filter((t) => t.status === 'available').length} free
+                {occupiedCount} occupied · {freeCount} free
               </p>
             </div>
-            <Button variant="outline" size="sm" onClick={() => loadTables()}>
-              Refresh
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={startDirectOrder}
+                className="bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600 text-white"
+              >
+                <Receipt className="w-4 h-4 mr-1.5" />
+                Direct Order / Takeaway
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => loadTables()}>
+                Refresh
+              </Button>
+            </div>
           </div>
-          <TableGrid tables={tables} onSelectTable={openTable} />
+
+          {/* Direct order hint banner */}
+          <div className="mb-4 p-3 rounded-xl bg-gradient-to-r from-violet-50 to-fuchsia-50 border border-violet-200 flex items-center gap-2.5 text-sm">
+            <div className="w-8 h-8 rounded-lg bg-violet-500 flex items-center justify-center text-white shrink-0">
+              <Receipt className="w-4 h-4" />
+            </div>
+            <div className="flex-1">
+              <p className="font-semibold text-violet-900">No-table restaurant? Use Direct Order</p>
+              <p className="text-xs text-violet-700">For takeaway, walk-in, or counter sales without assigning a table.</p>
+            </div>
+          </div>
+
+          <TableGrid tables={visibleTables} onSelectTable={openTable} />
         </main>
       </div>
     )
@@ -527,12 +574,16 @@ export default function CounterMode({ onExit }: CounterModeProps) {
         </div>
       </main>
 
-      {/* KOT print preview */}
+      {/* KOT print preview — 2 copies: Kitchen + Customer */}
       <PrintPreview
         open={showKOT}
         onClose={() => setShowKOT(false)}
-        title={`KOT — Table ${order?.table?.number}`}
-        subtitle="Kitchen copy"
+        title={`KOT — ${order?.table?.number === 0 ? 'Direct Order' : 'Table ' + order?.table?.number}`}
+        subtitle="2 copies will print"
+        copies={[
+          { label: 'Kitchen Copy', banner: '*** KITCHEN COPY ***' },
+          { label: 'Customer Copy', banner: '*** CUSTOMER COPY ***' },
+        ]}
       >
         {order && <KOTReceipt order={order} kotNo={kotNo} />}
       </PrintPreview>

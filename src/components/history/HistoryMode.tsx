@@ -246,7 +246,11 @@ export default function HistoryMode({ onExit }: HistoryModeProps) {
         open={!!previewBill}
         onClose={() => setPreviewBill(null)}
         title={`Bill #${previewBill?.billNo}`}
-        subtitle="Reprint"
+        subtitle="Reprint — 2 copies"
+        copies={[
+          { label: 'Customer Copy', banner: '*** CUSTOMER COPY ***' },
+          { label: 'Restaurant Copy', banner: '*** RESTAURANT COPY ***' },
+        ]}
       >
         {previewBill && <BillReceipt bill={previewBill} />}
       </PrintPreview>

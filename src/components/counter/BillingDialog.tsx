@@ -220,7 +220,7 @@ export function BillingDialog({
         </motion.div>
       )}
 
-      {/* Print preview after bill */}
+      {/* Print preview after bill — 2 copies: Customer + Restaurant */}
       <PrintPreview
         open={showPrint}
         onClose={() => {
@@ -228,7 +228,11 @@ export function BillingDialog({
           onClose()
         }}
         title={`Bill #${generatedBill?.billNo || billNo}`}
-        subtitle="Customer copy"
+        subtitle="2 copies will print"
+        copies={[
+          { label: 'Customer Copy', banner: '*** CUSTOMER COPY ***' },
+          { label: 'Restaurant Copy', banner: '*** RESTAURANT COPY ***' },
+        ]}
       >
         {generatedBill && <BillReceipt bill={generatedBill} />}
       </PrintPreview>

@@ -14,6 +14,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       ...(body.cost != null && { cost: Number(body.cost) }),
       ...(body.stock != null && { stock: Number(body.stock) }),
       ...(body.unit != null && { unit: body.unit }),
+      ...(body.image !== undefined && { image: body.image }),
       ...(body.available != null && { available: body.available }),
     },
   })

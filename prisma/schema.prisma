@@ -19,6 +19,7 @@ model MenuItem {
   cost      Float    @default(0)
   stock     Int      @default(0)
   unit      String   @default("Pcs")
+  image     String?  // URL or base64 data URI
   available Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -58,9 +59,10 @@ model Order {
   id          String   @id @default(cuid())
   tableId     String
   status      String   @default("open")
-  type        String   @default("dine_in") // dine_in | takeaway
+  type        String   @default("dine_in") // dine_in | takeaway | direct
   guests      Int      @default(1)
   waiterName  String?
+  customerName String?
   notes       String?
   kotPrinted  Boolean  @default(false)
   billPrinted Boolean  @default(false)
@@ -235,4 +237,32 @@ model ShopSetting {
   footerNote    String   @default("Thank you for dining with us!")
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+}
+
+// ---- Zomato Orders (aggregator) ----------------------------------------
+// status: new | accepted | preparing | ready | dispatched | delivered | cancelled
+// deliveryType: delivery | pickup | dinein
+model ZomatoOrder {
+  id             String   @id @default(cuid())
+  zomatoOrderId  String   @unique // Zomato's order ID
+  customerName   String
+  customerPhone  String?
+  deliveryType   String   @default("delivery") // delivery | pickup
+  address        String?
+  items          String   // JSON: [{ name, qty, price }]
+  subtotal       Float
+  taxAmount      Float    @default(0)
+  packagingCharge Float   @default(0)
+  deliveryFee    Float    @default(0)
+  discount       Float    @default(0)
+  total          Float
+  paymentMode    String   @default("prepaid") // prepaid | cod
+  status         String   @default("new")
+  notes          String?
+  internalOrderId String? // linked internal Order id once pushed to kitchen
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
 }

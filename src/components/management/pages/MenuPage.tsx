@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Plus, Search, Edit, Trash2, Package, X, Check, Loader2, SlidersHorizontal,
@@ -168,8 +168,27 @@ export default function MenuPage() {
               >
                 <Card className="border-0 shadow-md rounded-2xl overflow-hidden hover:shadow-lg transition-all hover:-translate-y-0.5 group">
                   <CardContent className="p-0">
-                    <div className="h-20 bg-gradient-to-br from-orange-50 to-rose-50 flex items-center justify-center relative">
-                      <span className="text-3xl">{getEmoji(it.name)}</span>
+                    <div className="h-20 bg-gradient-to-br from-orange-50 to-rose-50 flex items-center justify-center relative overflow-hidden">
+                      {it.image ? (
+                        <img
+                          src={it.image}
+                          alt={it.name}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            const target = e.currentTarget
+                            target.style.display = 'none'
+                            const parent = target.parentElement
+                            if (parent && !parent.querySelector('.fallback-emoji')) {
+                              const span = document.createElement('span')
+                              span.className = 'fallback-emoji text-3xl'
+                              span.textContent = getEmoji(it.name)
+                              parent.appendChild(span)
+                            }
+                          }}
+                        />
+                      ) : (
+                        <span className="text-3xl">{getEmoji(it.name)}</span>
+                      )}
                       <Badge className={`absolute top-1.5 right-1.5 text-[9px] px-1.5 py-0 ${catColor(it.category)}`}>
                         {it.category}
                       </Badge>
@@ -258,9 +277,32 @@ function ItemForm({
     cost: initial?.cost?.toString() || '0',
     stock: initial?.stock?.toString() || '0',
     unit: initial?.unit || 'Pcs',
+    image: initial?.image || '',
     available: initial?.available ?? true,
   })
   const [saving, setSaving] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (file.size > 500 * 1024) {
+      toast.error('Image too large (max 500KB)')
+      return
+    }
+    setUploading(true)
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      setF({ ...f, image: ev.target?.result as string })
+      setUploading(false)
+    }
+    reader.onerror = () => {
+      toast.error('Could not read image')
+      setUploading(false)
+    }
+    reader.readAsDataURL(file)
+  }
 
   const submit = async () => {
     if (!f.name || !f.price) {
@@ -281,6 +323,61 @@ function ItemForm({
         <Label className="text-xs">Name</Label>
         <Input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} placeholder="e.g. Paneer Tikka" />
       </div>
+
+      {/* Image upload */}
+      <div className="space-y-1.5">
+        <Label className="text-xs">Item Image (optional)</Label>
+        <div className="flex items-start gap-3">
+          <div className="w-20 h-20 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center overflow-hidden shrink-0">
+            {f.image ? (
+              <img src={f.image} alt="preview" className="w-full h-full object-cover" />
+            ) : (
+              <span className="text-3xl">{getEmoji(f.name || '')}</span>
+            )}
+          </div>
+          <div className="flex-1 space-y-2">
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleFileUpload}
+              className="hidden"
+              ref={fileInputRef}
+            />
+            <div className="flex gap-1.5">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="h-8 text-xs"
+              >
+                {uploading ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Plus className="w-3 h-3 mr-1" />}
+                {uploading ? 'Uploading…' : 'Upload'}
+              </Button>
+              {f.image && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setF({ ...f, image: '' })}
+                  className="h-8 text-xs text-rose-600"
+                >
+                  Remove
+                </Button>
+              )}
+            </div>
+            <Input
+              value={f.image.startsWith('data:') ? '' : f.image}
+              onChange={(e) => setF({ ...f, image: e.target.value })}
+              placeholder="Or paste image URL"
+              className="h-8 text-xs"
+            />
+            <p className="text-[10px] text-slate-400">PNG/JPG up to 500KB. Falls back to emoji if no image.</p>
+          </div>
+        </div>
+      </div>
+
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
           <Label className="text-xs">Category</Label>
