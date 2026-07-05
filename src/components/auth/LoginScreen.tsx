@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   UtensilsCrossed, Mail, Lock, ArrowRight, Loader2, Eye, EyeOff,
-  Shield, Store, AlertCircle, Sparkles, User,
+  Shield, Store, AlertCircle, Sparkles,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -152,38 +152,25 @@ export function LoginScreen({ onLoggedOut }: LoginScreenProps) {
             </Button>
           </form>
 
-          {/* Quick demo logins — 2 roles only */}
+          {/* Quick login — super admin only */}
           <div className="mt-5 pt-5 border-t border-white/10">
             <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1">
-              <Sparkles className="w-3 h-3" /> Demo logins (tap to fill)
+              <Sparkles className="w-3 h-3" /> Quick Login
             </p>
-            <div className="grid grid-cols-2 gap-1.5">
+            <div className="grid grid-cols-1 gap-1.5">
               <QuickLogin
                 icon={Shield}
                 label="Super Admin"
-                sublabel="All shops"
+                sublabel="All shops · Full access"
                 color="from-slate-700 to-slate-900"
-                onClick={() => quickFill('super@servingsync.com', 'super123')}
-              />
-              <QuickLogin
-                icon={User}
-                label="Staff"
-                sublabel="Counter + History"
-                color="from-orange-500 to-rose-500"
-                onClick={() => quickFill('riya@spice.com', 'staff123')}
+                onClick={() => quickFill('super@servingsync.com', 'admin123')}
               />
             </div>
-            <button
-              onClick={() => quickFill('admin@spice.com', 'admin123')}
-              className="w-full mt-1.5 text-[10px] text-slate-500 hover:text-slate-800 underline"
-            >
-              Or use Shop Admin (admin@spice.com)
-            </button>
           </div>
         </Card>
 
         <p className="text-center text-[10px] text-slate-500 mt-4">
-          2 login roles · Super Admin & Staff · Multi-shop support
+          Super Admin login · Multi-shop restaurant management
         </p>
       </motion.div>
     </div>
