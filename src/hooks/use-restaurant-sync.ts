@@ -1,6 +1,8 @@
 'use client'
 
 import { useEffect, useRef, useState, useCallback } from 'react'
+import { getSupabase, shopChannel } from '@/lib/supabase'
+import { useSession } from '@/lib/session'
 import type {
   KOTPayload,
   ItemStatusPayload,
@@ -11,10 +13,13 @@ import type {
 /**
  * useRestaurantSync
  * ------------------
- * Connects to the socket.io restaurant-sync hub (port 3005).
- * Routes Caddy automatically forwards `/?XTransformPort=3005` to the right port.
+ * Uses Supabase Realtime channels for cross-device sync.
+ * Works across any network (internet) — counter and kitchen can be on
+ * completely different devices/networks and still sync in real-time.
  *
- * Events the caller can subscribe to:
+ * Channel is scoped per shop: `shop-{shopId}` so events don't cross shops.
+ *
+ * Events broadcast:
  *   - kot:new            (kitchen listens)
  *   - kot:item-added     (kitchen listens)
  *   - item:status        (both sides)
@@ -22,15 +27,6 @@ import type {
  *   - table:released     (kitchen listens)
  *   - table:occupied     (kitchen listens)
  *   - data:refresh       (both sides)
- *
- * Methods the caller can use:
- *   - sendKOT(payload)
- *   - sendItemAdded(payload)
- *   - sendItemStatus(payload)
- *   - sendOrderStatus(payload)
- *   - sendTableReleased(payload)
- *   - sendTableOccupied(payload)
- *   - requestDataRefresh(payload?)
  */
 
 type Role = 'counter' | 'kitchen'
@@ -46,74 +42,95 @@ interface Handlers {
 }
 
 export function useRestaurantSync(role: Role, handlers: Handlers) {
+  const { currentShop } = useSession()
   const [connected, setConnected] = useState(false)
   const [onlineCount, setOnlineCount] = useState(0)
-  const socketRef = useRef<ReturnType<typeof import('socket.io-client').io> | null>(null)
+  const channelRef = useRef<ReturnType<ReturnType<typeof getSupabase>['channel']> | null>(null)
   const handlersRef = useRef(handlers)
   handlersRef.current = handlers
 
   useEffect(() => {
-    let mounted = true
+    if (!currentShop?.id) return
+    const supabase = getSupabase()
+    if (!supabase) {
+      console.warn('[sync] Supabase not configured — real-time sync disabled')
+      return
+    }
 
-    ;(async () => {
-      const { io } = await import('socket.io-client')
-      const socket = io('/?XTransformPort=3005', {
-        transports: ['websocket', 'polling'],
-        reconnection: true,
-        reconnectionDelay: 1000,
-        reconnectionAttempts: Infinity,
-      })
-      if (!mounted) {
-        socket.close()
-        return
-      }
-      socketRef.current = socket
+    const channelName = shopChannel(currentShop.id)
+    const channel = supabase.channel(channelName, {
+      config: { presence: { key: `${role}-${Math.random().toString(36).slice(2, 8)}` } },
+    })
 
-      socket.on('connect', () => {
+    // Listen to all custom events
+    const events: Array<{ name: string; handler: (payload: any) => void }> = [
+      { name: 'kot:new', handler: (p) => handlersRef.current.onKOTNew?.(p.payload) },
+      { name: 'kot:item-added', handler: (p) => handlersRef.current.onKOTItemAdded?.(p.payload) },
+      { name: 'item:status', handler: (p) => handlersRef.current.onItemStatus?.(p.payload) },
+      { name: 'order:status', handler: (p) => handlersRef.current.onOrderStatus?.(p.payload) },
+      { name: 'table:released', handler: (p) => handlersRef.current.onTableReleased?.(p.payload) },
+      { name: 'table:occupied', handler: (p) => handlersRef.current.onTableOccupied?.(p.payload) },
+      { name: 'data:refresh', handler: (p) => handlersRef.current.onDataRefresh?.(p.payload) },
+    ]
+
+    events.forEach(({ name, handler }) => {
+      channel.on('broadcast', { event: name }, (msg: any) => handler(msg))
+    })
+
+    // Presence — track online devices
+    channel
+      .on('presence', { event: 'sync' }, () => {
+        const state = channel.presenceState()
+        setOnlineCount(Object.keys(state).length)
         setConnected(true)
-        socket.emit('join', role)
       })
-      socket.on('disconnect', () => setConnected(false))
-      socket.on('reconnect', () => setConnected(true))
+      .on('presence', { event: 'join' }, () => {
+        const state = channel.presenceState()
+        setOnlineCount(Object.keys(state).length)
+      })
+      .on('presence', { event: 'leave' }, () => {
+        const state = channel.presenceState()
+        setOnlineCount(Object.keys(state).length)
+      })
+      .subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+          await channel.track({ role, online_at: new Date().toISOString() })
+          setConnected(true)
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          setConnected(false)
+        }
+      })
 
-      socket.on('joined', ({ online }: { online: number }) => setOnlineCount(online))
-
-      socket.on('kot:new', (p: KOTPayload) => handlersRef.current.onKOTNew?.(p))
-      socket.on('kot:item-added', (p: KOTPayload) => handlersRef.current.onKOTItemAdded?.(p))
-      socket.on('item:status', (p: ItemStatusPayload) => handlersRef.current.onItemStatus?.(p))
-      socket.on('order:status', (p: OrderStatusPayload) => handlersRef.current.onOrderStatus?.(p))
-      socket.on('table:released', (p: TablePayload) => handlersRef.current.onTableReleased?.(p))
-      socket.on('table:occupied', (p: TablePayload) => handlersRef.current.onTableOccupied?.(p))
-      socket.on('data:refresh', (p: unknown) => handlersRef.current.onDataRefresh?.(p))
-    })()
+    channelRef.current = channel
 
     return () => {
-      mounted = false
-      socketRef.current?.close()
-      socketRef.current = null
+      supabase.removeChannel(channel)
+      channelRef.current = null
+      setConnected(false)
     }
-  }, [role])
+  }, [role, currentShop?.id])
 
+  // Broadcast helpers
   const sendKOT = useCallback((p: KOTPayload) => {
-    socketRef.current?.emit('kot:new', p)
+    channelRef.current?.send({ type: 'broadcast', event: 'kot:new', payload: p })
   }, [])
   const sendItemAdded = useCallback((p: KOTPayload) => {
-    socketRef.current?.emit('kot:item-added', p)
+    channelRef.current?.send({ type: 'broadcast', event: 'kot:item-added', payload: p })
   }, [])
   const sendItemStatus = useCallback((p: ItemStatusPayload) => {
-    socketRef.current?.emit('item:status', p)
+    channelRef.current?.send({ type: 'broadcast', event: 'item:status', payload: p })
   }, [])
   const sendOrderStatus = useCallback((p: OrderStatusPayload) => {
-    socketRef.current?.emit('order:status', p)
+    channelRef.current?.send({ type: 'broadcast', event: 'order:status', payload: p })
   }, [])
   const sendTableReleased = useCallback((p: TablePayload) => {
-    socketRef.current?.emit('table:released', p)
+    channelRef.current?.send({ type: 'broadcast', event: 'table:released', payload: p })
   }, [])
   const sendTableOccupied = useCallback((p: TablePayload) => {
-    socketRef.current?.emit('table:occupied', p)
+    channelRef.current?.send({ type: 'broadcast', event: 'table:occupied', payload: p })
   }, [])
   const requestDataRefresh = useCallback((p?: unknown) => {
-    socketRef.current?.emit('data:refresh', p || {})
+    channelRef.current?.send({ type: 'broadcast', event: 'data:refresh', payload: p || {} })
   }, [])
 
   return {

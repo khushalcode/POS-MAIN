@@ -430,3 +430,52 @@ Stage Summary:
 - Fast billing: Generate Bill enabled before KOT sent (for quick takeaway)
 - Pending orders sub-tab: Counter + Zomato show kitchen-pending orders at top
 - 6 mode cards: Direct Order, Counter, Zomato, Kitchen, History, Management
+
+---
+Task ID: bugs-theme-supabase
+Agent: main
+Task: Fix hydration/duplicate key errors, unify 3-color theme, soft backgrounds, redesign landing, Supabase realtime
+
+Work Log:
+- Fixed hydration mismatch: added suppressHydrationWarning to <body> (browser extensions inject data-gr-ext-installed attrs)
+- Fixed duplicate React keys in PrintPreview (hidden copies used same key as visible — prefixed with "hidden-")
+- Fixed duplicate keys in KitchenMode items (added fallback key={`item-${idx}`} when id is undefined)
+- Created Supabase client (src/lib/supabase.ts) — reads NEXT_PUBLIC_SUPABASE_URL + NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY from .env.local
+- Created .env.local with user's Supabase credentials
+- Rewrote useRestaurantSync hook to use Supabase Realtime channels instead of socket.io:
+  - Channel scoped per shop: `shop-{shopId}` (events don't cross shops)
+  - Uses Supabase broadcast for KOT/order/item events
+  - Uses Supabase presence for online device count
+  - Works across ANY network (internet) — counter and kitchen can be on different devices/networks
+  - Auto-subscribes on mount, tracks presence, cleans up on unmount
+- Added soft-bg CSS class to globals.css — radial gradient tinted with theme color (orange/emerald/violet) on #fafafa background
+- Unified ALL mode cards to use brand-gradient (removed per-card colors: rose for Zomato, emerald for Kitchen, violet for History, slate for Management)
+- Redesigned landing page:
+  - All 6 cards use the same brand-gradient (changes with theme)
+  - Soft professional background (soft-bg class)
+  - Compact hero with welcome message
+  - Cleaner card layout (smaller padding, consistent heights)
+  - Featured "Direct Order" card with ⚡ Fast badge
+  - License badge in header (compact "365d")
+  - "Enter new key" link at bottom
+- Applied soft-bg to Counter Mode, History Mode, Zomato Mode (replaced bg-slate-50)
+- Unified Zomato Mode colors: replaced from-rose-500 to-red-600 with bg-brand-gradient (header icon, Sync buttons, form submit)
+- No longer needs socket.io mini-service for cross-device sync — Supabase handles it
+
+Verification (Agent Browser):
+- ✓ App loads → no hydration errors in console
+- ✓ No "Encountered two children with the same key" errors
+- ✓ Login as Super Admin → pick Spice Garden → redesigned home
+- ✓ All 6 mode cards use unified brand-gradient (orange theme)
+- ✓ Soft professional background applied (soft-bg class)
+- ✓ Counter Mode shows "● Live" — Supabase Realtime connected
+- ✓ License badge "365d" in header
+- ✓ Lint passes cleanly
+
+Stage Summary:
+- Bugs fixed: hydration mismatch + duplicate React keys
+- Unified 3-color theme: orange (Sunset) / emerald (Forest) / violet (Berry) — all cards use brand-gradient
+- Soft professional background on all pages
+- Supabase Realtime replaces socket.io for cross-device sync (works on any network)
+- .env.local created with user's Supabase credentials
+- Socket.io mini-service no longer required for sync (can keep for local fallback)

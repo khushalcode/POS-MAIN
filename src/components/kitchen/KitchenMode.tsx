@@ -374,9 +374,9 @@ function KitchenCard({
 
         {/* Items */}
         <div className="divide-y divide-slate-700">
-          {ticket.items.map((it) => (
+          {ticket.items.map((it, idx) => (
             <KitchenItem
-              key={it.id}
+              key={it.id || `item-${idx}`}
               item={it}
               isNew={ticket.newItemIds.has(it.id)}
               onStatus={(s) => onStatus(ticket, it, s)}

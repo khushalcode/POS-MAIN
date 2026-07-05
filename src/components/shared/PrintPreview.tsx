@@ -174,7 +174,7 @@ export function PrintPreview({ open, onClose, title, subtitle, children, width =
               {/* Hidden copies for printing */}
               {hasMultiple && allCopies.map((c, i) => (
                 i === activeIdx ? null : (
-                  <div key={c.label} className="hidden">
+                  <div key={`hidden-${c.label}`} className="hidden">
                     <div id={`copy-${c.label.replace(/\s+/g, '-')}`}>
                       {c.banner && (
                         <div className="bg-slate-900 text-white text-center text-[10px] font-bold py-1 uppercase tracking-wider">

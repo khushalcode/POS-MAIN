@@ -150,7 +150,7 @@ export default function ZomatoMode({ onExit }: ZomatoModeProps) {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen soft-bg">
       {/* Header */}
       <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-xl border-b border-slate-200">
         <div className="max-w-7xl mx-auto px-3 sm:px-4 py-2.5 sm:py-3 flex items-center justify-between gap-2">
@@ -158,7 +158,7 @@ export default function ZomatoMode({ onExit }: ZomatoModeProps) {
             <Button variant="ghost" size="sm" onClick={onExit} className="shrink-0">
               <ArrowLeft className="w-4 h-4 mr-1" /> <span className="hidden sm:inline">Exit</span>
             </Button>
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-rose-500 to-red-600 flex items-center justify-center shadow-lg shrink-0">
+            <div className="w-9 h-9 rounded-xl bg-brand-gradient flex items-center justify-center shadow-lg shrink-0">
               <Bike className="w-5 h-5 text-white" />
             </div>
             <div className="min-w-0">
@@ -191,7 +191,7 @@ export default function ZomatoMode({ onExit }: ZomatoModeProps) {
             <Button onClick={() => setShowAdd(true)} variant="outline" size="sm" className="text-xs">
               <Plus className="w-3.5 h-3.5 mr-1" /> Manual
             </Button>
-            <Button onClick={handleSync} disabled={syncing} size="sm" className="bg-gradient-to-r from-rose-500 to-red-600 text-white text-xs">
+            <Button onClick={handleSync} disabled={syncing} size="sm" className="bg-brand-gradient text-white text-xs">
               {syncing ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5 mr-1" />}
               Sync
             </Button>
@@ -233,7 +233,7 @@ export default function ZomatoMode({ onExit }: ZomatoModeProps) {
               {activeTab === 'pending' ? 'No pending orders' : activeTab === 'delivered' ? 'No delivered orders' : 'No Zomato orders yet'}
             </h3>
             <p className="text-sm mb-4">Click Sync to fetch orders from Zomato, or add a manual entry.</p>
-            <Button onClick={handleSync} disabled={syncing} className="bg-gradient-to-r from-rose-500 to-red-600 text-white">
+            <Button onClick={handleSync} disabled={syncing} className="bg-brand-gradient text-white">
               {syncing ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-1" />}
               Sync Now
             </Button>
@@ -495,7 +495,7 @@ function ManualZomatoForm({ onSubmit, onCancel }: { onSubmit: (d: any) => Promis
       </div>
       <div className="flex gap-2 pt-2">
         <Button variant="outline" onClick={onCancel} className="flex-1">Cancel</Button>
-        <Button onClick={submit} disabled={saving} className="flex-1 bg-gradient-to-r from-rose-500 to-red-600 text-white">
+        <Button onClick={submit} disabled={saving} className="flex-1 bg-brand-gradient text-white">
           {saving && <Loader2 className="w-4 h-4 animate-spin mr-1" />}
           Create Order
         </Button>

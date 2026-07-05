@@ -179,3 +179,35 @@
 .scrollable-sidebar::-webkit-scrollbar-thumb:hover {
   background-color: rgba(148, 163, 184, 0.7);
 }
+
+/* ─── Unified soft professional background ─── */
+/* Applied to all page wrappers for a consistent, calm look */
+.soft-bg {
+  background:
+    radial-gradient(circle at 0% 0%, rgba(249, 115, 22, 0.04), transparent 40%),
+    radial-gradient(circle at 100% 100%, rgba(244, 63, 94, 0.04), transparent 40%),
+    #fafafa;
+}
+
+[data-theme="emerald"] .soft-bg {
+  background:
+    radial-gradient(circle at 0% 0%, rgba(16, 185, 129, 0.04), transparent 40%),
+    radial-gradient(circle at 100% 100%, rgba(20, 184, 166, 0.04), transparent 40%),
+    #fafafa;
+}
+
+[data-theme="violet"] .soft-bg {
+  background:
+    radial-gradient(circle at 0% 0%, rgba(139, 92, 246, 0.04), transparent 40%),
+    radial-gradient(circle at 100% 100%, rgba(217, 70, 239, 0.04), transparent 40%),
+    #fafafa;
+}
+
+/* Card hover lift */
+.card-lift {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.card-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px -8px rgba(0, 0, 0, 0.12);
+}
