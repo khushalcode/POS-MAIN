@@ -10,8 +10,10 @@ import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { toast } from 'sonner'
 import type { ShopSettings } from '@/lib/types'
+import { useShopFetch } from '@/hooks/use-shop-fetch'
 
 export default function SettingsPage() {
+  const shopFetch = useShopFetch()
   const [settings, setSettings] = useState<ShopSettings | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -31,7 +33,7 @@ export default function SettingsPage() {
 
   useEffect(() => {
     const load = async () => {
-      const res = await fetch('/api/settings')
+      const res = await shopFetch('/api/settings')
       const data = await res.json()
       setSettings(data.settings)
       setF({
@@ -55,7 +57,7 @@ export default function SettingsPage() {
   const save = async () => {
     setSaving(true)
     try {
-      const res = await fetch('/api/settings', {
+      const res = await shopFetch('/api/settings', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(f),

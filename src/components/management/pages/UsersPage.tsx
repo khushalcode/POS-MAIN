@@ -24,7 +24,7 @@ export default function UsersPage() {
 
   const load = useCallback(async () => {
     setLoading(true)
-    const res = await fetch('/api/users')
+    const res = await shopFetch('/api/users')
     const data = await res.json()
     setUsers(data.users)
     setLoading(false)
@@ -34,7 +34,7 @@ export default function UsersPage() {
 
   const save = async (data: any) => {
     const isEdit = !!editUser
-    const res = await fetch('/api/users', {
+    const res = await shopFetch('/api/users', {
       method: isEdit ? 'PUT' : 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(isEdit ? { ...data, id: editUser!.id } : data),
@@ -52,7 +52,7 @@ export default function UsersPage() {
 
   const del = async () => {
     if (!delUser) return
-    const res = await fetch(`/api/users?id=${delUser.id}`, { method: 'DELETE' })
+    const res = await shopFetch(`/api/users?id=${delUser.id}`, { method: 'DELETE' })
     if (!res.ok) { toast.error('Failed to delete'); return }
     toast.success('User deleted')
     setDelUser(null)

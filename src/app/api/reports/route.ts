@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { getShopId } from '@/lib/shop-context'
 
 // GET /api/reports?type=daily|monthly|range&from=&to=
 export async function GET(req: NextRequest) {
+  const shopId = getShopId(req)
+  if (!shopId) return NextResponse.json({ error: 'Shop ID required' }, { status: 400 })
+
   const sp = req.nextUrl.searchParams
   const type = sp.get('type') || 'daily'
   const from = sp.get('from')
@@ -24,14 +28,14 @@ export async function GET(req: NextRequest) {
 
   const [bills, expenses, moneyIn, moneyOut, purchases] = await Promise.all([
     db.bill.findMany({
-      where: { paidAt: { gte: startDate, lte: endDate } },
+      where: { shopId, paidAt: { gte: startDate, lte: endDate } },
       include: { order: { include: { items: true } } },
       orderBy: { paidAt: 'desc' },
     }),
-    db.expense.findMany({ where: { date: { gte: startDate, lte: endDate } } }),
-    db.moneyIn.findMany({ where: { date: { gte: startDate, lte: endDate } } }),
-    db.moneyOut.findMany({ where: { date: { gte: startDate, lte: endDate } } }),
-    db.purchase.findMany({ where: { createdAt: { gte: startDate, lte: endDate } } }),
+    db.expense.findMany({ where: { shopId, date: { gte: startDate, lte: endDate } } }),
+    db.moneyIn.findMany({ where: { shopId, date: { gte: startDate, lte: endDate } } }),
+    db.moneyOut.findMany({ where: { shopId, date: { gte: startDate, lte: endDate } } }),
+    db.purchase.findMany({ where: { shopId, createdAt: { gte: startDate, lte: endDate } } }),
   ])
 
   const salesRevenue = bills.reduce((s, b) => s + b.total, 0)
@@ -40,7 +44,6 @@ export async function GET(req: NextRequest) {
   const totalMoneyIn = moneyIn.reduce((s, m) => s + m.amount, 0)
   const totalMoneyOut = moneyOut.reduce((s, m) => s + m.amount, 0)
 
-  // Payment mode breakdown
   const byPayment: Record<string, { count: number; total: number }> = {}
   bills.forEach((b) => {
     byPayment[b.paymentMode] = byPayment[b.paymentMode] || { count: 0, total: 0 }
@@ -48,7 +51,6 @@ export async function GET(req: NextRequest) {
     byPayment[b.paymentMode].total += b.total
   })
 
-  // Top items
   const itemMap = new Map<string, { name: string; qty: number; revenue: number }>()
   bills.forEach((b) => {
     b.order.items.forEach((i) => {
@@ -61,13 +63,11 @@ export async function GET(req: NextRequest) {
   })
   const topItems = Array.from(itemMap.values()).sort((a, b) => b.qty - a.qty).slice(0, 10)
 
-  // Expense breakdown by category
   const expenseByCategory: Record<string, number> = {}
   expenses.forEach((e) => {
     expenseByCategory[e.category] = (expenseByCategory[e.category] || 0) + e.amount
   })
 
-  // Per-day breakdown (for charts)
   const dayMap = new Map<string, { sales: number; expenses: number }>()
   bills.forEach((b) => {
     const k = b.paidAt.toISOString().split('T')[0]

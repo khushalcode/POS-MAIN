@@ -14,8 +14,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner'
 import { formatCurrency, formatDateTime } from '@/lib/format'
 import type { Purchase, Supplier, MenuItem } from '@/lib/types'
+import { useShopFetch } from '@/hooks/use-shop-fetch'
 
 export default function PurchasesPage() {
+  const shopFetch = useShopFetch()
   const [items, setItems] = useState<Purchase[]>([])
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
   const [menu, setMenu] = useState<MenuItem[]>([])
@@ -49,7 +51,7 @@ export default function PurchasesPage() {
     .reduce((s, p) => s + p.total, 0)
 
   const save = async (data: any) => {
-    const res = await fetch('/api/purchases', {
+    const res = await shopFetch('/api/purchases', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
@@ -61,7 +63,7 @@ export default function PurchasesPage() {
   }
 
   const del = async (id: string) => {
-    const res = await fetch(`/api/purchases?id=${id}`, { method: 'DELETE' })
+    const res = await shopFetch(`/api/purchases?id=${id}`, { method: 'DELETE' })
     if (!res.ok) { toast.error('Failed to delete'); return }
     toast.success('Purchase deleted')
     load()

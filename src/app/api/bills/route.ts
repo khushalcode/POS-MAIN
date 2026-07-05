@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { getShopId } from '@/lib/shop-context'
 
 // GET /api/bills?from=&to=&table=&q=
 export async function GET(req: NextRequest) {
+  const shopId = getShopId(req)
+  if (!shopId) return NextResponse.json({ error: 'Shop ID required' }, { status: 400 })
+
   const sp = req.nextUrl.searchParams
   const from = sp.get('from')
   const to = sp.get('to')
@@ -11,6 +15,7 @@ export async function GET(req: NextRequest) {
 
   const bills = await db.bill.findMany({
     where: {
+      shopId,
       ...(from || to
         ? {
             paidAt: {
@@ -35,7 +40,6 @@ export async function GET(req: NextRequest) {
     )
   }
 
-  // Summary
   const totalRevenue = filtered.reduce((s, b) => s + b.total, 0)
   const totalBills = filtered.length
   const byPayment = filtered.reduce<Record<string, number>>((acc, b) => {
@@ -49,14 +53,16 @@ export async function GET(req: NextRequest) {
   })
 }
 
-// POST /api/bills — generate a bill from an order and mark it paid
-// Body: { orderId, taxRate?, discount?, serviceCharge?, paymentMode? }
+// POST /api/bills — generate a bill from an order
 export async function POST(req: NextRequest) {
+  const shopId = getShopId(req)
+  if (!shopId) return NextResponse.json({ error: 'Shop ID required' }, { status: 400 })
+
   const body = await req.json()
   const { orderId, taxRate = 0, discount = 0, serviceCharge = 0, paymentMode = 'cash' } = body
 
-  const order = await db.order.findUnique({
-    where: { id: orderId },
+  const order = await db.order.findFirst({
+    where: { id: orderId, shopId },
     include: { items: true, table: true },
   })
   if (!order) return NextResponse.json({ error: 'Order not found' }, { status: 404 })
@@ -69,13 +75,14 @@ export async function POST(req: NextRequest) {
   const taxAmount = subtotal * (Number(taxRate) / 100)
   const total = Math.max(0, subtotal + taxAmount + Number(serviceCharge) - Number(discount))
 
-  // Pick next bill number
-  const last = await db.bill.findFirst({ orderBy: { billNo: 'desc' } })
+  // Pick next bill number for this shop
+  const last = await db.bill.findFirst({ where: { shopId }, orderBy: { billNo: 'desc' } })
   const billNo = last ? last.billNo + 1 : 1001
 
   const bill = await db.$transaction(async (tx) => {
     const created = await tx.bill.create({
       data: {
+        shopId,
         billNo,
         orderId,
         tableNumber: order.table.number,
@@ -90,12 +97,10 @@ export async function POST(req: NextRequest) {
         paidAt: new Date(),
       },
     })
-    // Mark order as paid
     await tx.order.update({
       where: { id: orderId },
       data: { status: 'paid', billPrinted: true },
     })
-    // Release the table
     await tx.restaurantTable.update({
       where: { id: order.tableId },
       data: { status: 'available', currentOrderId: null },

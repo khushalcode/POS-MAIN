@@ -15,8 +15,10 @@ import {
 } from 'recharts'
 import { formatCurrency, formatTime, timeAgo } from '@/lib/format'
 import type { DashboardData } from '@/lib/types'
+import { useShopFetch } from '@/hooks/use-shop-fetch'
 
 export default function DashboardPage() {
+  const shopFetch = useShopFetch()
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -24,7 +26,7 @@ export default function DashboardPage() {
     let mounted = true
     const load = async () => {
       try {
-        const res = await fetch('/api/dashboard')
+        const res = await shopFetch('/api/dashboard')
         const d = await res.json()
         if (mounted) setData(d)
       } finally {

@@ -1,24 +1,42 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { getShopId } from '@/lib/shop-context'
 
-// GET — return singleton shop settings (create default if missing)
-export async function GET() {
-  let settings = await db.shopSetting.findFirst()
+// GET — return shop-scoped settings (auto-create from Shop if missing)
+export async function GET(req: NextRequest) {
+  const shopId = getShopId(req)
+  if (!shopId) return NextResponse.json({ error: 'Shop ID required' }, { status: 400 })
+
+  let settings = await db.shopSetting.findUnique({ where: { shopId } })
   if (!settings) {
-    settings = await db.shopSetting.create({ data: {} })
+    const shop = await db.shop.findUnique({ where: { id: shopId } })
+    settings = await db.shopSetting.create({
+      data: {
+        shopId,
+        shopName: shop?.name || 'Restaurant',
+        address: shop?.address || null,
+        phone: shop?.phone || null,
+        gstin: shop?.gstin || null,
+        taxRate: shop?.taxRate || 5,
+        currency: shop?.currency || 'Rs.',
+      },
+    })
   }
   return NextResponse.json({ settings })
 }
 
-// PUT — update shop settings
+// PUT — update shop-scoped settings
 export async function PUT(req: NextRequest) {
+  const shopId = getShopId(req)
+  if (!shopId) return NextResponse.json({ error: 'Shop ID required' }, { status: 400 })
+
   const b = await req.json()
-  let settings = await db.shopSetting.findFirst()
+  let settings = await db.shopSetting.findUnique({ where: { shopId } })
   if (!settings) {
-    settings = await db.shopSetting.create({ data: {} })
+    settings = await db.shopSetting.create({ data: { shopId } })
   }
   const updated = await db.shopSetting.update({
-    where: { id: settings.id },
+    where: { shopId },
     data: {
       ...(b.shopName != null && { shopName: b.shopName }),
       ...(b.address != null && { address: b.address }),

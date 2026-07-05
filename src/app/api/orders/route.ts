@@ -1,12 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { getShopId } from '@/lib/shop-context'
 
-// GET /api/orders — list orders, optionally filter by ?status=&tableId=
+// GET /api/orders — list orders for the current shop, optionally filtered
 export async function GET(req: NextRequest) {
+  const shopId = getShopId(req)
+  if (!shopId) return NextResponse.json({ error: 'Shop ID required' }, { status: 400 })
+
   const status = req.nextUrl.searchParams.get('status')
   const tableId = req.nextUrl.searchParams.get('tableId')
   const orders = await db.order.findMany({
     where: {
+      shopId,
       ...(status ? { status } : {}),
       ...(tableId ? { tableId } : {}),
     },
@@ -16,19 +21,20 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ orders })
 }
 
-// POST /api/orders — create a new open order for a table
-// Body: { tableId, type?, guests?, waiterName?, notes?, customerName? }
+// POST /api/orders — create a new open order for a table in the current shop
 export async function POST(req: NextRequest) {
+  const shopId = getShopId(req)
+  if (!shopId) return NextResponse.json({ error: 'Shop ID required' }, { status: 400 })
+
   const body = await req.json()
   const { tableId, type = 'dine_in', guests = 1, waiterName, notes, customerName } = body
   if (!tableId) {
     return NextResponse.json({ error: 'tableId is required' }, { status: 400 })
   }
 
-  // Block if table already has an open order
-  const table = await db.restaurantTable.findUnique({ where: { id: tableId } })
+  const table = await db.restaurantTable.findFirst({ where: { id: tableId, shopId } })
   if (!table) {
-    return NextResponse.json({ error: 'Table not found' }, { status: 404 })
+    return NextResponse.json({ error: 'Table not found in this shop' }, { status: 404 })
   }
   if (table.currentOrderId) {
     return NextResponse.json(
@@ -37,10 +43,10 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  // Create order and link it as the table's current order in a transaction
   const order = await db.$transaction(async (tx) => {
     const created = await tx.order.create({
       data: {
+        shopId,
         tableId,
         type,
         guests: Number(guests),

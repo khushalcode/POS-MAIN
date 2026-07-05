@@ -14,8 +14,10 @@ import {
   Tooltip as RechartsTooltip, Legend,
 } from 'recharts'
 import { formatCurrency, formatDateTime } from '@/lib/format'
+import { useShopFetch } from '@/hooks/use-shop-fetch'
 
 export default function ReportsPage() {
+  const shopFetch = useShopFetch()
   const [type, setType] = useState<'daily' | 'monthly' | 'range'>('daily')
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
@@ -28,7 +30,7 @@ export default function ReportsPage() {
       const params = new URLSearchParams({ type })
       if (from) params.set('from', from)
       if (to) params.set('to', to)
-      const res = await fetch(`/api/reports?${params.toString()}`)
+      const res = await shopFetch(`/api/reports?${params.toString()}`)
       const d = await res.json()
       setData(d)
       setLoading(false)

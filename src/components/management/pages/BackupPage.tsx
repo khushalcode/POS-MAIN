@@ -10,8 +10,10 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose,
 } from '@/components/ui/dialog'
 import { toast } from 'sonner'
+import { useShopFetch } from '@/hooks/use-shop-fetch'
 
 export default function BackupPage() {
+  const shopFetch = useShopFetch()
   const [exporting, setExporting] = useState(false)
   const [importing, setImporting] = useState(false)
   const [restoreFile, setRestoreFile] = useState<any>(null)
@@ -21,7 +23,7 @@ export default function BackupPage() {
   const handleExport = async () => {
     setExporting(true)
     try {
-      const res = await fetch('/api/backup')
+      const res = await shopFetch('/api/backup')
       const data = await res.json()
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
       const url = URL.createObjectURL(blob)
@@ -63,7 +65,7 @@ export default function BackupPage() {
     if (!restoreFile) return
     setImporting(true)
     try {
-      const res = await fetch('/api/backup', {
+      const res = await shopFetch('/api/backup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(restoreFile.data),

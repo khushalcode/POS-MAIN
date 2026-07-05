@@ -1,40 +1,38 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { getShopId } from '@/lib/shop-context'
 
-type Ctx = { params: Promise<{ id: string }> }
-
-// POST /api/zomato/[id]/push
-// Convert a Zomato order into an internal Order + OrderItems + send to kitchen.
-// Uses the virtual "Direct Counter" table (number 0) so the order shows up in
-// the kitchen display like any other takeaway order.
-export async function POST(_req: Request, { params }: Ctx) {
+// POST /api/zomato/[id]/push — convert Zomato order to internal KOT
+export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const zomato = await db.zomatoOrder.findUnique({ where: { id } })
+  const shopId = getShopId(req as any)
+  if (!shopId) return NextResponse.json({ error: 'Shop ID required' }, { status: 400 })
+
+  const zomato = await db.zomatoOrder.findFirst({ where: { id, shopId } })
   if (!zomato) return NextResponse.json({ error: 'Not found' }, { status: 404 })
   if (zomato.internalOrderId) {
     return NextResponse.json({ error: 'Already pushed to kitchen', internalOrderId: zomato.internalOrderId }, { status: 400 })
   }
 
-  // Get the virtual Direct Counter table
-  let directTable = await db.restaurantTable.findUnique({ where: { number: 0 } })
+  // Find the Direct Counter table for this shop (number 0)
+  let directTable = await db.restaurantTable.findFirst({ where: { shopId, number: 0 } })
   if (!directTable) {
     directTable = await db.restaurantTable.create({
-      data: { number: 0, name: 'Direct Counter', capacity: 0, status: 'available' },
+      data: { shopId, number: 0, name: 'Direct Counter', capacity: 0, status: 'available' },
     })
   }
 
-  // Parse items
   const items = (() => { try { return JSON.parse(zomato.items) as any[] } catch { return [] } })()
   if (items.length === 0) {
     return NextResponse.json({ error: 'No items to push' }, { status: 400 })
   }
 
-  // Create the internal order in a transaction
   const order = await db.$transaction(async (tx) => {
     const created = await tx.order.create({
       data: {
+        shopId,
         tableId: directTable!.id,
-        status: 'sent', // immediately sent to kitchen
+        status: 'sent',
         type: zomato.deliveryType === 'pickup' ? 'takeaway' : 'direct',
         guests: 1,
         customerName: zomato.customerName,
@@ -43,13 +41,29 @@ export async function POST(_req: Request, { params }: Ctx) {
       },
     })
 
-    // Create order items — match against menu by name where possible
     for (const it of items) {
-      const menuMatch = await tx.menuItem.findFirst({ where: { name: it.name } })
+      const menuMatch = await tx.menuItem.findFirst({ where: { shopId, name: it.name } })
+      // Create a placeholder menu item if no match (so foreign key holds)
+      let menuItemId = menuMatch?.id
+      if (!menuItemId) {
+        const placeholder = await tx.menuItem.create({
+          data: {
+            shopId,
+            name: String(it.name),
+            category: 'General',
+            price: Number(it.price),
+            cost: 0,
+            stock: 0,
+            unit: 'Pcs',
+            available: true,
+          },
+        })
+        menuItemId = placeholder.id
+      }
       await tx.orderItem.create({
         data: {
           orderId: created.id,
-          menuItemId: menuMatch?.id || 'unknown',
+          menuItemId,
           name: String(it.name),
           price: Number(it.price),
           quantity: Number(it.qty),
@@ -58,13 +72,11 @@ export async function POST(_req: Request, { params }: Ctx) {
       })
     }
 
-    // Mark the direct table as occupied (briefly, until billed)
     await tx.restaurantTable.update({
       where: { id: directTable!.id },
       data: { status: 'occupied', currentOrderId: created.id },
     })
 
-    // Link Zomato order to internal order + advance status
     await tx.zomatoOrder.update({
       where: { id },
       data: { internalOrderId: created.id, status: 'accepted' },

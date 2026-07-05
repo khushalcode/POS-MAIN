@@ -1,18 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { getShopId } from '@/lib/shop-context'
 
 // GET /api/zomato?status=
 export async function GET(req: NextRequest) {
+  const shopId = getShopId(req)
+  if (!shopId) return NextResponse.json({ error: 'Shop ID required' }, { status: 400 })
+
   const status = req.nextUrl.searchParams.get('status')
   const orders = await db.zomatoOrder.findMany({
-    where: status ? { status } : undefined,
+    where: {
+      shopId,
+      ...(status ? { status } : {}),
+    },
     orderBy: { createdAt: 'desc' },
   })
   return NextResponse.json({ orders })
 }
 
-// POST /api/zomato — manually create a Zomato order
+// POST /api/zomato — manually create a Zomato order for the current shop
 export async function POST(req: NextRequest) {
+  const shopId = getShopId(req)
+  if (!shopId) return NextResponse.json({ error: 'Shop ID required' }, { status: 400 })
+
   const b = await req.json()
   if (!b.customerName || !b.items?.length) {
     return NextResponse.json({ error: 'customerName and items[] required' }, { status: 400 })
@@ -24,12 +34,13 @@ export async function POST(req: NextRequest) {
   const discount = Number(b.discount || 0)
   const total = subtotal + taxAmount + packagingCharge + deliveryFee - discount
 
-  const last = await db.zomatoOrder.findFirst({ orderBy: { zomatoOrderId: 'desc' } })
+  const last = await db.zomatoOrder.findFirst({ where: { shopId }, orderBy: { zomatoOrderId: 'desc' } })
   const nextNum = last ? (parseInt(last.zomatoOrderId.replace(/\D/g, '')) || 1000) + 1 : 1001
   const zomatoOrderId = `ZOM-${nextNum}`
 
   const order = await db.zomatoOrder.create({
     data: {
+      shopId,
       zomatoOrderId,
       customerName: b.customerName,
       customerPhone: b.customerPhone || null,

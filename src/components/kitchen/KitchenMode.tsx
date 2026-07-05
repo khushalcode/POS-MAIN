@@ -13,12 +13,15 @@ import {
   Volume2,
   VolumeX,
   Loader2,
+  Store,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import { toast } from 'sonner'
 import { useRestaurantSync } from '@/hooks/use-restaurant-sync'
+import { useShopFetch } from '@/hooks/use-shop-fetch'
+import { useSession } from '@/lib/session'
 import { formatTime, timeAgo, ITEM_STATUS_LABELS, ITEM_STATUS_COLORS } from '@/lib/format'
 import type { Order, OrderItem, KOTPayload, ItemStatusPayload } from '@/lib/types'
 
@@ -41,6 +44,8 @@ interface KitchenTicket {
 }
 
 export default function KitchenMode({ onExit }: KitchenModeProps) {
+  const { currentShop, user, shops, selectShop, logout } = useSession()
+  const shopFetch = useShopFetch()
   const [tickets, setTickets] = useState<KitchenTicket[]>([])
   const [loading, setLoading] = useState(true)
   const [soundOn, setSoundOn] = useState(true)
@@ -55,11 +60,11 @@ export default function KitchenMode({ onExit }: KitchenModeProps) {
   // ----- Initial load: fetch all in-progress orders -----
   const loadActiveOrders = useCallback(async () => {
     try {
-      const res = await fetch('/api/orders?status=sent')
+      const res = await shopFetch('/api/orders?status=sent')
       const sent = await res.json()
-      const res2 = await fetch('/api/orders?status=preparing')
+      const res2 = await shopFetch('/api/orders?status=preparing')
       const prep = await res2.json()
-      const res3 = await fetch('/api/orders?status=ready')
+      const res3 = await shopFetch('/api/orders?status=ready')
       const ready = await res3.json()
       const all = [...sent.orders, ...prep.orders, ...ready.orders] as Order[]
       setTickets(
@@ -155,7 +160,7 @@ export default function KitchenMode({ onExit }: KitchenModeProps) {
           : t
       )
     )
-    await fetch(`/api/orders/${ticket.orderId}/items/${item.id}`, {
+    await shopFetch(`/api/orders/${ticket.orderId}/items/${item.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status }),
@@ -204,24 +209,41 @@ export default function KitchenMode({ onExit }: KitchenModeProps) {
   return (
     <div className="min-h-screen bg-slate-900 text-white">
       <header className="sticky top-0 z-30 bg-slate-950/90 backdrop-blur-xl border-b border-slate-800">
-        <div className="max-w-[1800px] mx-auto px-4 md:px-6 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="sm" onClick={onExit} className="text-slate-300 hover:text-white">
-              <ArrowLeft className="w-4 h-4 mr-1" /> Exit
+        <div className="max-w-[1800px] mx-auto px-3 sm:px-4 md:px-6 py-2.5 sm:py-3 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <Button variant="ghost" size="sm" onClick={onExit} className="text-slate-300 hover:text-white shrink-0">
+              <ArrowLeft className="w-4 h-4 mr-1" /> <span className="hidden sm:inline">Exit</span>
             </Button>
-            <div className="w-px h-6 bg-slate-700" />
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center shadow-lg shadow-emerald-500/30">
+            <div className="hidden sm:block w-px h-6 bg-slate-700" />
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-brand-gradient flex items-center justify-center shadow-lg shrink-0">
               <ChefHat className="w-5 h-5 text-white" />
             </div>
-            <div>
-              <h2 className="text-base font-bold">Kitchen Display</h2>
-              <p className="text-[10px] text-slate-400">
-                {sync.connected ? '● Live · syncing with counter' : '○ Reconnecting…'}
+            <div className="min-w-0">
+              <h2 className="text-sm sm:text-base font-bold truncate">Kitchen Display</h2>
+              <p className="text-[10px] text-slate-400 flex items-center gap-1">
+                {sync.connected ? '● Live' : '○ Reconnecting'}
+                {currentShop && <span className="hidden sm:inline">· {currentShop.name}</span>}
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            {/* Shop switcher (compact) */}
+            {shops.length > 1 && (
+              <select
+                value={currentShop?.id || ''}
+                onChange={(e) => {
+                  const next = shops.find((s) => s.id === e.target.value)
+                  if (next) selectShop(next)
+                }}
+                className="text-[11px] font-semibold bg-slate-800 text-white border border-slate-700 rounded-lg px-2 py-1 cursor-pointer hover:bg-slate-700 max-w-[120px] sm:max-w-[180px] truncate"
+                title="Switch shop"
+              >
+                {shops.map((s) => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+            )}
             <Stat label="Pending" value={pendingCount} color="bg-slate-700" />
             <Stat label="Cooking" value={preparingCount} color="bg-blue-500" />
             <Stat label="Ready" value={readyCount} color="bg-emerald-500" />
@@ -232,6 +254,10 @@ export default function KitchenMode({ onExit }: KitchenModeProps) {
               className="text-slate-300 hover:text-white"
             >
               {soundOn ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+            </Button>
+            <Button variant="ghost" size="sm" onClick={logout} className="text-slate-300 hover:text-white text-xs h-8 px-2">
+              <span className="hidden sm:inline">Sign out</span>
+              <span className="sm:hidden">Exit</span>
             </Button>
           </div>
         </div>

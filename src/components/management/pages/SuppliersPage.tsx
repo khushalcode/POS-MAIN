@@ -12,8 +12,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogC
 import { toast } from 'sonner'
 import type { Supplier } from '@/lib/types'
 import { PartyForm } from './CustomersPage'
+import { useShopFetch } from '@/hooks/use-shop-fetch'
 
 export default function SuppliersPage() {
+  const shopFetch = useShopFetch()
   const [items, setItems] = useState<Supplier[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -23,7 +25,7 @@ export default function SuppliersPage() {
 
   const load = useCallback(async () => {
     setLoading(true)
-    const res = await fetch(`/api/suppliers?search=${encodeURIComponent(search)}`)
+    const res = await shopFetch(`/api/suppliers?search=${encodeURIComponent(search)}`)
     const data = await res.json()
     setItems(data.suppliers)
     setLoading(false)
@@ -36,7 +38,7 @@ export default function SuppliersPage() {
 
   const save = async (data: any) => {
     const isEdit = !!editItem
-    const res = await fetch('/api/suppliers', {
+    const res = await shopFetch('/api/suppliers', {
       method: isEdit ? 'PUT' : 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(isEdit ? { ...data, id: editItem!.id } : data),
@@ -50,7 +52,7 @@ export default function SuppliersPage() {
 
   const del = async () => {
     if (!delItem) return
-    const res = await fetch(`/api/suppliers?id=${delItem.id}`, { method: 'DELETE' })
+    const res = await shopFetch(`/api/suppliers?id=${delItem.id}`, { method: 'DELETE' })
     if (!res.ok) { toast.error('Failed to delete'); return }
     toast.success('Supplier deleted')
     setDelItem(null)

@@ -30,6 +30,8 @@ import {
 } from '@/components/ui/select'
 import { PrintPreview } from '@/components/shared/PrintPreview'
 import { BillReceipt } from '@/components/shared/Receipts'
+import { useShopFetch } from '@/hooks/use-shop-fetch'
+import { useSession } from '@/lib/session'
 import { formatCurrency, formatDateTime } from '@/lib/format'
 import type { Bill, PaymentMode } from '@/lib/types'
 
@@ -38,6 +40,8 @@ interface HistoryModeProps {
 }
 
 export default function HistoryMode({ onExit }: HistoryModeProps) {
+  const { currentShop } = useSession()
+  const shopFetch = useShopFetch()
   const [bills, setBills] = useState<Bill[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -58,17 +62,17 @@ export default function HistoryMode({ onExit }: HistoryModeProps) {
     }
     if (tableFilter !== 'all') params.set('table', tableFilter)
     if (search) params.set('q', search)
-    const res = await fetch(`/api/bills?${params.toString()}`)
+    const res = await shopFetch(`/api/bills?${params.toString()}`)
     const data = await res.json()
     setBills(data.bills)
     setSummary(data.summary)
     setLoading(false)
-  }, [fromDate, toDate, tableFilter, search])
+  }, [fromDate, toDate, tableFilter, search, shopFetch])
 
   useEffect(() => {
     const t = setTimeout(() => load(), 300)
     return () => clearTimeout(t)
-  }, [load])
+  }, [load, currentShop?.id])
 
   const todayRevenue = summary.totalRevenue
 

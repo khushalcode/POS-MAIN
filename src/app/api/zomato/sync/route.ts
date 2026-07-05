@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { getShopId } from '@/lib/shop-context'
 
-// POST /api/zomato/sync — simulate fetching orders from Zomato
-// In a real integration this would call Zomato's API. For offline-first
-// restaurants, this creates 0-3 sample orders so you can see the flow.
-export async function POST() {
-  // Sample customer names + items
+// POST /api/zomato/sync — simulate fetching orders from Zomato for the current shop
+export async function POST(req: Request) {
+  const shopId = getShopId(req as any)
+  if (!shopId) return NextResponse.json({ error: 'Shop ID required' }, { status: 400 })
+
   const samples = [
     { customer: 'Aarav Patel', phone: '98200 11223', items: [['Butter Chicken', 1, 320], ['Butter Naan', 3, 50]], type: 'delivery', address: '12 Marine Drive, Mumbai', payment: 'prepaid' },
     { customer: 'Diya Sharma', phone: '99300 44556', items: [['Paneer Butter Masala', 1, 280], ['Jeera Rice', 1, 140], ['Sweet Lassi', 2, 90]], type: 'pickup', address: null, payment: 'cod' },
@@ -15,7 +16,6 @@ export async function POST() {
 
   const created = []
   for (const s of samples) {
-    // 50% chance to create each sample (so sync feels dynamic)
     if (Math.random() < 0.5) continue
 
     const items = s.items.map(([name, qty, price]) => ({ name, qty, price }))
@@ -25,11 +25,12 @@ export async function POST() {
     const taxAmount = Math.round(subtotal * 0.05 * 100) / 100
     const total = subtotal + taxAmount + packagingCharge + deliveryFee
 
-    const last = await db.zomatoOrder.findFirst({ orderBy: { zomatoOrderId: 'desc' } })
+    const last = await db.zomatoOrder.findFirst({ where: { shopId }, orderBy: { zomatoOrderId: 'desc' } })
     const nextNum = last ? (parseInt(last.zomatoOrderId.replace(/\D/g, '')) || 1000) + 1 : 1001
 
     const order = await db.zomatoOrder.create({
       data: {
+        shopId,
         zomatoOrderId: `ZOM-${nextNum}`,
         customerName: s.customer,
         customerPhone: s.phone,

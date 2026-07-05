@@ -1,5 +1,5 @@
 // Restaurant POS System — Prisma schema
-// SQLite for offline-first local storage. All data stays on the restaurant machine.
+// SQLite for offline-first local storage. Multi-shop aware.
 
 generator client {
   provider = "prisma-client-js"
@@ -10,56 +10,81 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ---- Shop (multi-restaurant) -------------------------------------------
+model Shop {
+  id          String   @id @default(cuid())
+  name        String
+  code        String   @unique // short code like SPICE, BELLY
+  address     String?
+  phone       String?
+  gstin       String?
+  taxRate     Float    @default(5)
+  serviceRate Float    @default(0)
+  currency    String   @default("Rs.")
+  color       String   @default("orange") // orange | emerald | violet (theme hint)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  menuItems    MenuItem[]
+  tables       RestaurantTable[]
+  orders       Order[]
+  bills        Bill[]
+  zomatoOrders ZomatoOrder[]
+  users        AppUser[]
+  customers    Customer[]
+  settings     ShopSetting?
+}
+
 // ---- Menu ---------------------------------------------------------------
 model MenuItem {
   id        String   @id @default(cuid())
+  shopId    String
   name      String
   category  String   @default("General")
   price     Float
   cost      Float    @default(0)
   stock     Int      @default(0)
   unit      String   @default("Pcs")
-  image     String?  // URL or base64 data URI
+  image     String?
   available Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  shop       Shop       @relation(fields: [shopId], references: [id], onDelete: Cascade)
   orderItems OrderItem[]
 
-  @@index([category])
+  @@index([shopId, category])
 }
 
 // ---- Tables -------------------------------------------------------------
 model RestaurantTable {
   id             String  @id @default(cuid())
-  number         Int     @unique
+  shopId         String
+  number         Int
   name           String  @default("Table")
   capacity       Int     @default(4)
-  status         String  @default("available") // available | occupied
+  status         String  @default("available")
   currentOrderId String? @unique
 
-  // All historical orders for this table
+  shop          Shop            @relation(fields: [shopId], references: [id], onDelete: Cascade)
   orders        Order[]         @relation("TableOrders")
   currentOrder  Order?          @relation("TableCurrentOrder", fields: [currentOrderId], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@unique([shopId, number])
+  @@index([shopId])
 }
 
 // ---- Orders -------------------------------------------------------------
-// status lifecycle:
-//   open       — accumulating items at the table
-//   sent       — KOT pushed to kitchen
-//   preparing  — kitchen acknowledged
-//   ready      — kitchen marked all items ready
-//   served     — counter acknowledged delivery
-//   billed     — bill generated, awaiting payment
-//   paid       — bill cleared → moves to history, table released
 model Order {
   id          String   @id @default(cuid())
+  shopId      String
   tableId     String
   status      String   @default("open")
-  type        String   @default("dine_in") // dine_in | takeaway | direct
+  type        String   @default("dine_in")
   guests      Int      @default(1)
   waiterName  String?
   customerName String?
@@ -69,13 +94,14 @@ model Order {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  shop         Shop            @relation(fields: [shopId], references: [id], onDelete: Cascade)
   table        RestaurantTable @relation("TableOrders", fields: [tableId], references: [id])
   asCurrent    RestaurantTable? @relation("TableCurrentOrder")
   items        OrderItem[]
   bill         Bill?
 
+  @@index([shopId, status])
   @@index([tableId])
-  @@index([status])
 }
 
 // ---- Order Items --------------------------------------------------------
@@ -83,10 +109,10 @@ model OrderItem {
   id         String   @id @default(cuid())
   orderId    String
   menuItemId String
-  name       String   // snapshot of menu name at time of order
-  price      Float    // snapshot of price
+  name       String
+  price      Float
   quantity   Int      @default(1)
-  status     String   @default("pending") // pending | preparing | ready | served | cancelled
+  status     String   @default("pending")
   notes      String?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
@@ -98,10 +124,11 @@ model OrderItem {
   @@index([status])
 }
 
-// ---- Bills (history) ----------------------------------------------------
+// ---- Bills --------------------------------------------------------------
 model Bill {
   id            String   @id @default(cuid())
-  billNo        Int      @unique
+  shopId        String
+  billNo        Int
   orderId       String   @unique
   tableNumber   Int
   subtotal      Float
@@ -110,20 +137,23 @@ model Bill {
   discount      Float    @default(0.0)
   serviceCharge Float    @default(0.0)
   total         Float
-  paymentMode   String   @default("cash") // cash | card | upi | other
+  paymentMode   String   @default("cash")
   paymentStatus String   @default("paid")
   paidAt        DateTime @default(now())
   createdAt     DateTime @default(now())
 
+  shop  Shop  @relation(fields: [shopId], references: [id], onDelete: Cascade)
   order Order @relation(fields: [orderId], references: [id])
 
-  @@index([paidAt])
+  @@unique([shopId, billNo])
+  @@index([shopId, paidAt])
   @@index([tableNumber])
 }
 
 // ---- Customers ----------------------------------------------------------
 model Customer {
   id        String   @id @default(cuid())
+  shopId    String
   name      String
   phone     String?
   email     String?
@@ -132,13 +162,15 @@ model Customer {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([name])
-  @@index([phone])
+  shop Shop @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@index([shopId, name])
 }
 
 // ---- Suppliers ----------------------------------------------------------
 model Supplier {
   id        String   @id @default(cuid())
+  shopId    String
   name      String
   phone     String?
   email     String?
@@ -147,12 +179,13 @@ model Supplier {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([name])
+  @@index([shopId, name])
 }
 
-// ---- Purchases (stock in) ----------------------------------------------
+// ---- Purchases ----------------------------------------------------------
 model Purchase {
   id            String   @id @default(cuid())
+  shopId        String
   invoiceNumber String   @unique
   supplierId    String?
   supplierName  String?
@@ -161,15 +194,16 @@ model Purchase {
   total         Float
   paymentMode   String   @default("cash")
   notes         String?
-  items         String   // JSON: [{ name, qty, price, total }]
+  items         String
   createdAt     DateTime @default(now())
 
-  @@index([createdAt])
+  @@index([shopId, createdAt])
 }
 
 // ---- Expenses -----------------------------------------------------------
 model Expense {
   id          String   @id @default(cuid())
+  shopId      String
   category    String
   description String
   amount      Float
@@ -177,13 +211,14 @@ model Expense {
   date        DateTime @default(now())
   createdAt   DateTime @default(now())
 
-  @@index([date])
+  @@index([shopId, date])
   @@index([category])
 }
 
-// ---- Money In (cash inflow other than sales) ---------------------------
+// ---- Money In -----------------------------------------------------------
 model MoneyIn {
   id          String   @id @default(cuid())
+  shopId      String
   amount      Float
   source      String
   description String?
@@ -192,12 +227,13 @@ model MoneyIn {
   date        DateTime @default(now())
   createdAt   DateTime @default(now())
 
-  @@index([date])
+  @@index([shopId, date])
 }
 
-// ---- Money Out (cash outflow other than purchases/expenses) ------------
+// ---- Money Out ----------------------------------------------------------
 model MoneyOut {
   id          String   @id @default(cuid())
+  shopId      String
   amount      Float
   purpose     String
   description String?
@@ -206,24 +242,30 @@ model MoneyOut {
   date        DateTime @default(now())
   createdAt   DateTime @default(now())
 
-  @@index([date])
+  @@index([shopId, date])
 }
 
-// ---- App Users (admin/staff) -------------------------------------------
+// ---- App Users (admin/staff/kitchen) -----------------------------------
 model AppUser {
   id        String   @id @default(cuid())
   name      String
   email     String   @unique
-  role      String   @default("staff") // admin | staff
   password  String
+  role      String   @default("staff") // admin | staff | kitchen
   active    Boolean  @default(true)
+  shopId    String?  // primary shop; null = all shops (admin)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  shop Shop? @relation(fields: [shopId], references: [id], onDelete: SetNull)
+
+  @@index([shopId])
 }
 
-// ---- Shop Settings (singleton) -----------------------------------------
+// ---- Shop Settings (singleton per shop — kept for compat) --------------
 model ShopSetting {
   id            String   @id @default(cuid())
+  shopId        String   @unique
   shopName      String   @default("ServingSync Restaurant")
   address       String?
   phone         String?
@@ -237,32 +279,35 @@ model ShopSetting {
   footerNote    String   @default("Thank you for dining with us!")
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+
+  shop Shop @relation(fields: [shopId], references: [id], onDelete: Cascade)
 }
 
-// ---- Zomato Orders (aggregator) ----------------------------------------
-// status: new | accepted | preparing | ready | dispatched | delivered | cancelled
-// deliveryType: delivery | pickup | dinein
+// ---- Zomato Orders ------------------------------------------------------
 model ZomatoOrder {
   id             String   @id @default(cuid())
-  zomatoOrderId  String   @unique // Zomato's order ID
+  shopId         String
+  zomatoOrderId  String   @unique
   customerName   String
   customerPhone  String?
-  deliveryType   String   @default("delivery") // delivery | pickup
+  deliveryType   String   @default("delivery")
   address        String?
-  items          String   // JSON: [{ name, qty, price }]
+  items          String
   subtotal       Float
   taxAmount      Float    @default(0)
   packagingCharge Float   @default(0)
   deliveryFee    Float    @default(0)
   discount       Float    @default(0)
   total          Float
-  paymentMode    String   @default("prepaid") // prepaid | cod
+  paymentMode    String   @default("prepaid")
   status         String   @default("new")
   notes          String?
-  internalOrderId String? // linked internal Order id once pushed to kitchen
+  internalOrderId String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  @@index([status])
+  shop Shop @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@index([shopId, status])
   @@index([createdAt])
 }

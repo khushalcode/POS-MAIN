@@ -11,17 +11,19 @@ import { toast } from 'sonner'
 import { formatCurrency, formatDateTime } from '@/lib/format'
 import type { MoneyOut } from '@/lib/types'
 import { EntryForm } from './ExpensesPage'
+import { useShopFetch } from '@/hooks/use-shop-fetch'
 
 const PURPOSES = ['Owner Draw', 'Loan Repayment', 'Asset Purchase', 'Donation', 'Personal', 'Misc']
 
 export default function MoneyOutPage() {
+  const shopFetch = useShopFetch()
   const [items, setItems] = useState<MoneyOut[]>([])
   const [loading, setLoading] = useState(true)
   const [showAdd, setShowAdd] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
-    const res = await fetch('/api/moneyout')
+    const res = await shopFetch('/api/moneyout')
     const data = await res.json()
     setItems(data.items)
     setLoading(false)
@@ -33,7 +35,7 @@ export default function MoneyOutPage() {
   const totalToday = items.filter((i) => new Date(i.date).toDateString() === new Date().toDateString()).reduce((s, i) => s + i.amount, 0)
 
   const save = async (data: any) => {
-    const res = await fetch('/api/moneyout', {
+    const res = await shopFetch('/api/moneyout', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...data, purpose: data.category, partyName: data.partyName || null }),
@@ -45,7 +47,7 @@ export default function MoneyOutPage() {
   }
 
   const del = async (id: string) => {
-    const res = await fetch(`/api/moneyout?id=${id}`, { method: 'DELETE' })
+    const res = await shopFetch(`/api/moneyout?id=${id}`, { method: 'DELETE' })
     if (!res.ok) { toast.error('Failed to delete'); return }
     toast.success('Deleted')
     load()

@@ -120,3 +120,62 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* ─── Brand theme variables (applied via JS in session.tsx) ─── */
+:root {
+  --brand-from: #f97316;
+  --brand-to: #f43f5e;
+  --brand-solid: #f97316;
+  --brand-soft: #fff7ed;
+  --brand-text: #c2410c;
+  --brand-ring: rgba(249, 115, 22, 0.35);
+}
+
+/* Brand gradient utility classes — use these instead of hardcoded colors */
+.bg-brand-gradient {
+  background-image: linear-gradient(to bottom right, var(--brand-from), var(--brand-to));
+}
+.bg-brand-solid {
+  background-color: var(--brand-solid);
+}
+.bg-brand-soft {
+  background-color: var(--brand-soft);
+}
+.text-brand {
+  color: var(--brand-solid);
+}
+.text-brand-text {
+  color: var(--brand-text);
+}
+.border-brand {
+  border-color: var(--brand-solid);
+}
+.ring-brand {
+  box-shadow: 0 0 0 2px var(--brand-ring);
+}
+.hover\:bg-brand-solid:hover {
+  background-color: var(--brand-solid);
+}
+.hover\:text-brand:hover {
+  color: var(--brand-solid);
+}
+
+/* Scrollable sidebar polish */
+.scrollable-sidebar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.4) transparent;
+}
+.scrollable-sidebar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.scrollable-sidebar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollable-sidebar::-webkit-scrollbar-thumb {
+  background-color: rgba(148, 163, 184, 0.4);
+  border-radius: 3px;
+}
+.scrollable-sidebar::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(148, 163, 184, 0.7);
+}

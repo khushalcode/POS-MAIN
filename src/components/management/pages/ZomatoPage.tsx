@@ -17,6 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner'
 import { formatCurrency, formatDateTime, timeAgo } from '@/lib/format'
 import type { ZomatoOrder, ZomatoStatus } from '@/lib/types'
+import { useShopFetch } from '@/hooks/use-shop-fetch'
 
 const STATUS_LABELS: Record<ZomatoStatus, string> = {
   new: 'New',
@@ -39,6 +40,7 @@ const STATUS_COLORS: Record<ZomatoStatus, string> = {
 }
 
 export default function ZomatoPage() {
+  const shopFetch = useShopFetch()
   const [orders, setOrders] = useState<ZomatoOrder[]>([])
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
@@ -49,7 +51,7 @@ export default function ZomatoPage() {
 
   const load = useCallback(async () => {
     setLoading(true)
-    const res = await fetch('/api/zomato' + (filter !== 'all' ? `?status=${filter}` : ''))
+    const res = await shopFetch('/api/zomato' + (filter !== 'all' ? `?status=${filter}` : ''))
     const data = await res.json()
     setOrders(data.orders)
     setLoading(false)
@@ -69,7 +71,7 @@ export default function ZomatoPage() {
   const handleSync = async () => {
     setSyncing(true)
     try {
-      const res = await fetch('/api/zomato/sync', { method: 'POST' })
+      const res = await shopFetch('/api/zomato/sync', { method: 'POST' })
       const data = await res.json()
       if (data.count > 0) {
         toast.success(`Synced ${data.count} new order${data.count > 1 ? 's' : ''} from Zomato`)
@@ -84,7 +86,7 @@ export default function ZomatoPage() {
 
   const updateStatus = async (id: string, status: ZomatoStatus) => {
     setOrders((cur) => cur.map((o) => (o.id === id ? { ...o, status } : o)))
-    await fetch(`/api/zomato/${id}`, {
+    await shopFetch(`/api/zomato/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status }),
@@ -95,7 +97,7 @@ export default function ZomatoPage() {
   const pushToKitchen = async (order: ZomatoOrder) => {
     setPushing(order.id)
     try {
-      const res = await fetch(`/api/zomato/${order.id}/push`, { method: 'POST' })
+      const res = await shopFetch(`/api/zomato/${order.id}/push`, { method: 'POST' })
       if (!res.ok) {
         const e = await res.json()
         toast.error(e.error || 'Failed to push')
@@ -109,7 +111,7 @@ export default function ZomatoPage() {
   }
 
   const handleAdd = async (data: any) => {
-    const res = await fetch('/api/zomato', {
+    const res = await shopFetch('/api/zomato', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
@@ -122,7 +124,7 @@ export default function ZomatoPage() {
 
   const del = async () => {
     if (!delItem) return
-    await fetch(`/api/zomato/${delItem.id}`, { method: 'DELETE' })
+    await shopFetch(`/api/zomato/${delItem.id}`, { method: 'DELETE' })
     toast.success('Order deleted')
     setDelItem(null)
     load()

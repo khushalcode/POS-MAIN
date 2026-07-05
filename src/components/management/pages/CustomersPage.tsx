@@ -12,8 +12,10 @@ import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog'
 import { toast } from 'sonner'
 import type { Customer } from '@/lib/types'
+import { useShopFetch } from '@/hooks/use-shop-fetch'
 
 export default function CustomersPage() {
+  const shopFetch = useShopFetch()
   const [items, setItems] = useState<Customer[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -23,7 +25,7 @@ export default function CustomersPage() {
 
   const load = useCallback(async () => {
     setLoading(true)
-    const res = await fetch(`/api/customers?search=${encodeURIComponent(search)}`)
+    const res = await shopFetch(`/api/customers?search=${encodeURIComponent(search)}`)
     const data = await res.json()
     setItems(data.customers)
     setLoading(false)
@@ -36,7 +38,7 @@ export default function CustomersPage() {
 
   const save = async (data: any) => {
     const isEdit = !!editItem
-    const res = await fetch('/api/customers', {
+    const res = await shopFetch('/api/customers', {
       method: isEdit ? 'PUT' : 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(isEdit ? { ...data, id: editItem!.id } : data),
@@ -53,7 +55,7 @@ export default function CustomersPage() {
 
   const del = async () => {
     if (!delItem) return
-    const res = await fetch(`/api/customers?id=${delItem.id}`, { method: 'DELETE' })
+    const res = await shopFetch(`/api/customers?id=${delItem.id}`, { method: 'DELETE' })
     if (!res.ok) {
       toast.error('Failed to delete')
       return

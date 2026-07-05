@@ -1,8 +1,12 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { getShopId } from '@/lib/shop-context'
 
-// GET /api/dashboard — comprehensive overview
-export async function GET() {
+// GET /api/dashboard — comprehensive overview for the current shop
+export async function GET(req: Request) {
+  const shopId = getShopId(req as any)
+  if (!shopId) return NextResponse.json({ error: 'Shop ID required' }, { status: 400 })
+
   const today = new Date()
   today.setHours(0, 0, 0, 0)
 
@@ -31,31 +35,31 @@ export async function GET() {
     occupiedTables,
     totalTables,
   ] = await Promise.all([
-    db.bill.aggregate({ _sum: { total: true }, _count: true, where: { paidAt: { gte: today } } }),
-    db.bill.aggregate({ _sum: { total: true }, _count: true, where: { paidAt: { gte: monthStart } } }),
-    db.bill.aggregate({ _sum: { total: true }, _count: true }),
-    db.menuItem.count(),
-    db.customer.count(),
-    db.supplier.count(),
+    db.bill.aggregate({ _sum: { total: true }, _count: true, where: { shopId, paidAt: { gte: today } } }),
+    db.bill.aggregate({ _sum: { total: true }, _count: true, where: { shopId, paidAt: { gte: monthStart } } }),
+    db.bill.aggregate({ _sum: { total: true }, _count: true, where: { shopId } }),
+    db.menuItem.count({ where: { shopId } }),
+    db.customer.count({ where: { shopId } }),
+    db.supplier.count({ where: { shopId } }),
     db.bill.findMany({
+      where: { shopId },
       take: 6,
       orderBy: { paidAt: 'desc' },
       include: { order: { include: { items: true } } },
     }),
     db.bill.findMany({
-      where: { paidAt: { gte: sevenDaysAgo } },
+      where: { shopId, paidAt: { gte: sevenDaysAgo } },
       select: { paidAt: true, total: true },
     }),
-    db.expense.aggregate({ _sum: { amount: true }, where: { date: { gte: today } } }),
-    db.moneyIn.aggregate({ _sum: { amount: true }, where: { date: { gte: today } } }),
-    db.moneyOut.aggregate({ _sum: { amount: true }, where: { date: { gte: today } } }),
-    db.purchase.aggregate({ _sum: { total: true }, where: { createdAt: { gte: today } } }),
-    db.menuItem.findMany({ where: { stock: { lte: 5 } }, orderBy: { stock: 'asc' }, take: 5 }),
-    db.restaurantTable.count({ where: { status: 'occupied' } }),
-    db.restaurantTable.count(),
+    db.expense.aggregate({ _sum: { amount: true }, where: { shopId, date: { gte: today } } }),
+    db.moneyIn.aggregate({ _sum: { amount: true }, where: { shopId, date: { gte: today } } }),
+    db.moneyOut.aggregate({ _sum: { amount: true }, where: { shopId, date: { gte: today } } }),
+    db.purchase.aggregate({ _sum: { total: true }, where: { shopId, createdAt: { gte: today } } }),
+    db.menuItem.findMany({ where: { shopId, stock: { lte: 5 } }, orderBy: { stock: 'asc' }, take: 5 }),
+    db.restaurantTable.count({ where: { shopId, status: 'occupied' } }),
+    db.restaurantTable.count({ where: { shopId } }),
   ])
 
-  // 7-day revenue chart
   const dayMap = new Map<string, number>()
   for (let i = 0; i < 7; i++) {
     const d = new Date(sevenDaysAgo)
@@ -68,11 +72,10 @@ export async function GET() {
   })
   const chartData = Array.from(dayMap.entries()).map(([date, total]) => ({ date, total }))
 
-  // Top selling items (last 30 days)
   const thirtyDaysAgo = new Date()
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
   const recentBillsForTop = await db.bill.findMany({
-    where: { paidAt: { gte: thirtyDaysAgo } },
+    where: { shopId, paidAt: { gte: thirtyDaysAgo } },
     include: { order: { include: { items: true } } },
   })
   const itemMap = new Map<string, { name: string; qty: number; revenue: number }>()
@@ -87,7 +90,6 @@ export async function GET() {
   })
   const topItems = Array.from(itemMap.values()).sort((a, b) => b.qty - a.qty).slice(0, 5)
 
-  // Today's cash flow
   const cashFlow = {
     salesIn: todayBills._sum.total || 0,
     otherIn: todayMoneyIn._sum.amount || 0,

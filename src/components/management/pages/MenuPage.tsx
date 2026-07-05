@@ -19,11 +19,13 @@ import {
 import { toast } from 'sonner'
 import { formatCurrency } from '@/lib/format'
 import type { MenuItem } from '@/lib/types'
+import { useShopFetch } from '@/hooks/use-shop-fetch'
 
 const CATEGORIES = ['Starters', 'Main Course', 'Breads', 'Beverages', 'Desserts', 'General']
 const UNITS = ['Pcs', 'Plate', 'Bowl', 'Glass', 'Cup', 'Kg', 'Ltr']
 
 export default function MenuPage() {
+  const shopFetch = useShopFetch()
   const [items, setItems] = useState<MenuItem[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -35,7 +37,7 @@ export default function MenuPage() {
 
   const load = useCallback(async () => {
     setLoading(true)
-    const res = await fetch('/api/menu')
+    const res = await shopFetch('/api/menu')
     const data = await res.json()
     setItems(data.items)
     setLoading(false)
@@ -53,7 +55,7 @@ export default function MenuPage() {
   })
 
   const handleCreate = async (data: any) => {
-    const res = await fetch('/api/menu', {
+    const res = await shopFetch('/api/menu', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
@@ -69,7 +71,7 @@ export default function MenuPage() {
 
   const handleUpdate = async (data: any) => {
     if (!editItem) return
-    const res = await fetch(`/api/menu/${editItem.id}`, {
+    const res = await shopFetch(`/api/menu/${editItem.id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
@@ -85,7 +87,7 @@ export default function MenuPage() {
 
   const handleDelete = async () => {
     if (!delItem) return
-    const res = await fetch(`/api/menu/${delItem.id}`, { method: 'DELETE' })
+    const res = await shopFetch(`/api/menu/${delItem.id}`, { method: 'DELETE' })
     if (!res.ok) {
       toast.error('Failed to delete')
       return

@@ -13,17 +13,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner'
 import { formatCurrency, formatDateTime } from '@/lib/format'
 import type { Expense } from '@/lib/types'
+import { useShopFetch } from '@/hooks/use-shop-fetch'
 
 const CATEGORIES = ['Rent', 'Salary', 'Utilities', 'Maintenance', 'Marketing', 'Supplies', 'Transport', 'Misc']
 
 export default function ExpensesPage() {
+  const shopFetch = useShopFetch()
   const [items, setItems] = useState<Expense[]>([])
   const [loading, setLoading] = useState(true)
   const [showAdd, setShowAdd] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
-    const res = await fetch('/api/expenses')
+    const res = await shopFetch('/api/expenses')
     const data = await res.json()
     setItems(data.expenses)
     setLoading(false)
@@ -43,7 +45,7 @@ export default function ExpensesPage() {
   }, {})
 
   const save = async (data: any) => {
-    const res = await fetch('/api/expenses', {
+    const res = await shopFetch('/api/expenses', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
@@ -55,7 +57,7 @@ export default function ExpensesPage() {
   }
 
   const del = async (id: string) => {
-    const res = await fetch(`/api/expenses?id=${id}`, { method: 'DELETE' })
+    const res = await shopFetch(`/api/expenses?id=${id}`, { method: 'DELETE' })
     if (!res.ok) { toast.error('Failed to delete'); return }
     toast.success('Expense deleted')
     load()

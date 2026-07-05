@@ -29,6 +29,8 @@ import { BillingDialog } from './BillingDialog'
 import { PrintPreview } from '@/components/shared/PrintPreview'
 import { KOTReceipt } from '@/components/shared/Receipts'
 import { useRestaurantSync } from '@/hooks/use-restaurant-sync'
+import { useShopFetch } from '@/hooks/use-shop-fetch'
+import { useSession } from '@/lib/session'
 import {
   formatCurrency,
   ORDER_STATUS_LABELS,
@@ -38,16 +40,20 @@ import type { RestaurantTable, Order, OrderItem, MenuItem, KOTPayload, ItemStatu
 
 interface CounterModeProps {
   onExit: () => void
+  /** Skip the table grid and jump straight to a direct/takeaway order */
+  directMode?: boolean
 }
 
-export default function CounterMode({ onExit }: CounterModeProps) {
+export default function CounterMode({ onExit, directMode }: CounterModeProps) {
+  const { currentShop, user } = useSession()
+  const shopFetch = useShopFetch()
   const [tables, setTables] = useState<RestaurantTable[]>([])
   const [menu, setMenu] = useState<MenuItem[]>([])
   const [selectedTable, setSelectedTable] = useState<RestaurantTable | null>(null)
   const [order, setOrder] = useState<Order | null>(null)
   const [loading, setLoading] = useState(true)
   const [guests, setGuests] = useState(1)
-  const [waiterName, setWaiterName] = useState('')
+  const [waiterName, setWaiterName] = useState(user?.name || '')
   const [orderNotes, setOrderNotes] = useState('')
   const [showKOT, setShowKOT] = useState(false)
   const [kotNo, setKotNo] = useState(0)
@@ -57,32 +63,43 @@ export default function CounterMode({ onExit }: CounterModeProps) {
 
   // ----- Initial loads -----
   const loadTables = useCallback(async () => {
-    const res = await fetch('/api/tables')
+    const res = await shopFetch('/api/tables')
     const data = await res.json()
     setTables(data.tables)
-  }, [])
+  }, [shopFetch])
 
   const loadMenu = useCallback(async () => {
-    const res = await fetch('/api/menu')
+    const res = await shopFetch('/api/menu')
     const data = await res.json()
     setMenu(data.items)
-  }, [])
+  }, [shopFetch])
 
   const loadBillNo = useCallback(async () => {
-    const res = await fetch('/api/bills/next-no')
+    const res = await shopFetch('/api/bills/next-no')
     const data = await res.json()
     setBillNo(data.nextNo)
-  }, [])
+  }, [shopFetch])
 
   useEffect(() => {
     ;(async () => {
       setLoading(true)
-      // Ensure tables seeded
-      await fetch('/api/tables/seed', { method: 'POST' })
+      await shopFetch('/api/tables/seed', { method: 'POST' })
       await Promise.all([loadTables(), loadMenu(), loadBillNo()])
       setLoading(false)
     })()
-  }, [loadTables, loadMenu, loadBillNo])
+  }, [loadTables, loadMenu, loadBillNo, shopFetch, currentShop?.id])
+
+  // ----- Auto-start direct order if directMode prop is set -----
+  const [directStarted, setDirectStarted] = useState(false)
+  useEffect(() => {
+    if (!directMode || loading || tables.length === 0 || directStarted) return
+    const directTable = tables.find((t) => t.number === 0)
+    if (directTable) {
+      setDirectStarted(true)
+      openTable({ ...directTable, type: 'direct' } as any)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [directMode, loading, tables.length, directStarted])
 
   // ----- Real-time sync -----
   const sync = useRestaurantSync('counter', {
@@ -129,7 +146,7 @@ export default function CounterMode({ onExit }: CounterModeProps) {
     const orderType = isDirect ? 'direct' : 'dine_in'
     if (t.currentOrder) {
       // Existing order — load it fully
-      const res = await fetch(`/api/orders/${t.currentOrder.id}`)
+      const res = await shopFetch(`/api/orders/${t.currentOrder.id}`)
       const data = await res.json()
       setOrder(data.order)
       setGuests(data.order.guests)
@@ -138,7 +155,7 @@ export default function CounterMode({ onExit }: CounterModeProps) {
     } else {
       // Create new open order
       try {
-        const res = await fetch('/api/orders', {
+        const res = await shopFetch('/api/orders', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ tableId: t.id, guests: 1, type: orderType }),
@@ -168,7 +185,7 @@ export default function CounterMode({ onExit }: CounterModeProps) {
   // ----- Item actions -----
   const addItem = async (item: MenuItem, qty: number) => {
     if (!order) return
-    const res = await fetch(`/api/orders/${order.id}/items`, {
+    const res = await shopFetch(`/api/orders/${order.id}/items`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ items: [{ menuItemId: item.id, quantity: qty }] }),
@@ -204,7 +221,7 @@ export default function CounterMode({ onExit }: CounterModeProps) {
 
   const incItem = async (it: OrderItem) => {
     if (!order) return
-    await fetch(`/api/orders/${order.id}/items/${it.id}`, {
+    await shopFetch(`/api/orders/${order.id}/items/${it.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ quantity: it.quantity + 1 }),
@@ -218,7 +235,7 @@ export default function CounterMode({ onExit }: CounterModeProps) {
       await removeItem(it)
       return
     }
-    await fetch(`/api/orders/${order.id}/items/${it.id}`, {
+    await shopFetch(`/api/orders/${order.id}/items/${it.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ quantity: it.quantity - 1 }),
@@ -228,7 +245,7 @@ export default function CounterMode({ onExit }: CounterModeProps) {
 
   const removeItem = async (it: OrderItem) => {
     if (!order) return
-    const res = await fetch(`/api/orders/${order.id}/items/${it.id}`, { method: 'DELETE' })
+    const res = await shopFetch(`/api/orders/${order.id}/items/${it.id}`, { method: 'DELETE' })
     if (!res.ok) {
       const e = await res.json()
       toast.error(e.error || 'Cannot remove')
@@ -239,7 +256,7 @@ export default function CounterMode({ onExit }: CounterModeProps) {
 
   const addNotes = async (it: OrderItem, notes: string) => {
     if (!order) return
-    await fetch(`/api/orders/${order.id}/items/${it.id}`, {
+    await shopFetch(`/api/orders/${order.id}/items/${it.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ notes }),
@@ -249,7 +266,7 @@ export default function CounterMode({ onExit }: CounterModeProps) {
 
   const refreshOrder = async () => {
     if (!order) return
-    const res = await fetch(`/api/orders/${order.id}`)
+    const res = await shopFetch(`/api/orders/${order.id}`)
     const data = await res.json()
     setOrder(data.order)
     await loadTables()
@@ -270,7 +287,7 @@ export default function CounterMode({ onExit }: CounterModeProps) {
     setBusy(true)
     try {
       // Update meta first (we use a tiny PATCH via /items pattern; here we just send)
-      const res = await fetch(`/api/orders/${order.id}/send`, {
+      const res = await shopFetch(`/api/orders/${order.id}/send`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ kotPrinted: true }),
@@ -309,7 +326,7 @@ export default function CounterMode({ onExit }: CounterModeProps) {
   // ----- Mark an item served (after kitchen said ready) -----
   const markServed = async (it: OrderItem) => {
     if (!order) return
-    await fetch(`/api/orders/${order.id}/items/${it.id}`, {
+    await shopFetch(`/api/orders/${order.id}/items/${it.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status: 'served' }),
@@ -336,7 +353,7 @@ export default function CounterMode({ onExit }: CounterModeProps) {
     paymentMode: any
   }) => {
     if (!order) throw new Error('No order')
-    const res = await fetch('/api/bills', {
+    const res = await shopFetch('/api/bills', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ orderId: order.id, ...payload }),
@@ -382,7 +399,7 @@ export default function CounterMode({ onExit }: CounterModeProps) {
       let directTable = tables.find((t) => t.number === 0)
       if (!directTable) {
         // Create it if missing
-        const res = await fetch('/api/tables', {
+        const res = await shopFetch('/api/tables', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ number: 0, name: 'Direct Counter', capacity: 0 }),
@@ -615,33 +632,56 @@ function Header({
   connected: boolean
   backLabel?: string
 }) {
+  const { currentShop, user, shops, selectShop, logout } = useSession()
   const labels = {
-    counter: { title: 'Counter Mode', color: 'from-orange-500 to-rose-500', icon: Store },
-    kitchen: { title: 'Kitchen Mode', color: 'from-emerald-500 to-teal-500', icon: Store },
-    history: { title: 'Bills & History', color: 'from-violet-500 to-fuchsia-500', icon: Store },
+    counter: { title: 'Counter Mode', color: 'bg-brand-gradient', icon: Store },
+    kitchen: { title: 'Kitchen Mode', color: 'bg-brand-gradient', icon: Store },
+    history: { title: 'Bills & History', color: 'bg-brand-gradient', icon: Store },
   }
   const l = labels[role]
   return (
     <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-xl border-b border-slate-200">
-      <div className="max-w-7xl mx-auto px-4 md:px-6 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" onClick={onExit}>
-            <ArrowLeft className="w-4 h-4 mr-1" /> {backLabel}
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 py-2.5 sm:py-3 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+          <Button variant="ghost" size="sm" onClick={onExit} className="shrink-0">
+            <ArrowLeft className="w-4 h-4 mr-1" /> <span className="hidden sm:inline">{backLabel}</span>
           </Button>
           <div className="hidden md:block w-px h-6 bg-slate-200" />
-          <div className={`hidden md:flex w-9 h-9 rounded-xl bg-gradient-to-br ${l.color} items-center justify-center`}>
+          <div className={`hidden md:flex w-9 h-9 rounded-xl ${l.color} items-center justify-center`}>
             <l.icon className="w-5 h-5 text-white" />
           </div>
-          <div>
-            <h2 className="text-sm font-bold text-slate-900">{l.title}</h2>
-            <p className="text-[10px] text-slate-500">
-              {connected ? '● Live sync active' : '○ Reconnecting…'}
+          <div className="min-w-0">
+            <h2 className="text-sm font-bold text-slate-900 truncate">{l.title}</h2>
+            <p className="text-[10px] text-slate-500 flex items-center gap-1">
+              {connected ? '● Live' : '○ Reconnecting'}
+              {currentShop && <span className="hidden sm:inline">· {currentShop.name}</span>}
             </p>
           </div>
         </div>
-        <Badge variant="outline" className="text-[10px]">
-          ServingSync POS
-        </Badge>
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          {/* Shop switcher (compact) */}
+          {shops.length > 1 && (
+            <select
+              value={currentShop?.id || ''}
+              onChange={(e) => {
+                const next = shops.find((s) => s.id === e.target.value)
+                if (next) selectShop(next)
+              }}
+              className="text-[11px] font-semibold bg-brand-soft text-brand-text border border-brand/20 rounded-lg px-2 py-1 cursor-pointer hover:opacity-90 max-w-[120px] sm:max-w-[180px] truncate"
+              title="Switch shop"
+            >
+              {shops.map((s) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+          )}
+          <Badge variant="outline" className="text-[10px] hidden sm:inline-flex">
+            {user?.name}
+          </Badge>
+          <Button variant="ghost" size="sm" onClick={logout} className="text-xs h-8 px-2">
+            Sign out
+          </Button>
+        </div>
       </div>
     </header>
   )
