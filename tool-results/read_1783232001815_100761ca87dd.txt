@@ -1,0 +1,404 @@
+     1→'use client'
+     2→
+     3→import { useState, useEffect, useCallback, useRef } from 'react'
+     4→import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+     5→import { motion, AnimatePresence, LayoutGroup } from 'framer-motion'
+     6→import {
+     7→  Home, Package, ShoppingCart, Clock, Users, Truck, BarChart3, UserCog,
+     8→  Settings, Cloud, Search, Bell, Menu, X, Plus, Minus, Trash2, CreditCard,
+     9→  Banknote, Smartphone, Wallet, ChevronRight, FileText, Printer, Edit,
+    10→  Trash, Check, TrendingUp, ShoppingBag, UserPlus,
+    11→  Shield, Database, WifiOff, Bluetooth, Download, Upload,
+    12→  MoreHorizontal, RefreshCw, Receipt, Store, Phone,
+    13→  Mail, Percent, Zap, CircleCheck, Loader2, LayoutGrid, ArrowUpRight,
+    14→  HandCoins, QrCode, Building2, UserCheck, Gauge, HardDrive,
+    15→  Volume2, VolumeX, Palette, Lock, Globe, CalendarDays, MessageSquare,
+    16→  Image, Type, Columns3, Rows3, List, Grid3X3, Tag, ScanLine,
+    17→  Calculator, ToggleLeft, ToggleRight, ChevronDown, ChevronUp,
+    18→  Keyboard, Eye, EyeOff, Save, RotateCcw, FileDown, FileUp,
+    19→  BookOpen, Star, Gift, Heart, Timer, Wifi, Monitor, Tablet, SlidersHorizontal,
+    20→  ArrowUpDown, Filter as FilterIcon, RotateCcw as ResetIcon
+    21→} from 'lucide-react'
+    22→import { Button } from '@/components/ui/button'
+    23→import { Input } from '@/components/ui/input'
+    24→import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+    25→import { Badge } from '@/components/ui/badge'
+    26→import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog'
+    27→import { Label } from '@/components/ui/label'
+    28→import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+    29→import { Separator } from '@/components/ui/separator'
+    30→import { ScrollArea } from '@/components/ui/scroll-area'
+    31→import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+    32→import { useCartStore, useNavStore } from '@/lib/store'
+    33→import { useRealTime, useElectronBridge } from '@/hooks/use-realtime'
+    34→import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Area, AreaChart, PieChart, Pie, Cell } from 'recharts'
+    35→import { toast } from 'sonner'
+    36→
+    37→// ─── Shared types, constants, data hooks, and reusable UI pieces ───
+    38→// Split out of the original monolithic page.tsx so each route page can be
+    39→// code-split with next/dynamic and only load what it needs.
+    40→export interface Product { id: string; name: string; category: string; unit: string; price: number; stock: number; image: string | null }
+    41→export interface Sale { id: string; invoiceNumber: string; customerName: string | null; subtotal: number; discount: number; tax: number; taxRate: number; grandTotal: number; paymentMode: string; status: string; createdAt: string; items: SaleItem[] }
+    42→export interface SaleItem { id: string; saleId: string; productId: string | null; name: string; unit: string; quantity: number; price: number; total: number }
+    43→export interface Customer { id: string; name: string; phone: string | null; email: string | null; address: string | null }
+    44→export interface Supplier { id: string; name: string; phone: string | null; email: string | null; address: string | null }
+    45→export interface AppUser { id: string; name: string; email: string; role: string }
+    46→export interface ShopSettings { id: string; shopName: string; address: string | null; phone: string | null; email: string | null; taxRate: number; currency: string; invoicePrefix: string }
+    47→export interface DashboardData { todayRevenue: number; todayCount: number; monthRevenue: number; monthCount: number; totalRevenue: number; totalCount: number; productCount: number; customerCount: number; recentSales: Sale[]; chartData: { date: string; total: number }[] }
+    48→export interface Purchase { id: string; invoiceNumber: string; supplierName: string | null; subtotal: number; tax: number; grandTotal: number; paymentMode: string; status: string; createdAt: string }
+    49→export interface Estimate { id: string; estimateNumber: string; customerName: string | null; subtotal: number; discount: number; tax: number; grandTotal: number; status: string; validUntil: string | null; createdAt: string }
+    50→export interface Order { id: string; orderNumber: string; customerName: string | null; subtotal: number; advance: number; balance: number; status: string; deliveryDate: string | null; createdAt: string }
+    51→export interface Expense { id: string; category: string; description: string; amount: number; paymentMode: string; date: string; createdAt: string }
+    52→export interface MoneyIn { id: string; amount: number; source: string; description: string | null; partyName: string | null; paymentMode: string; date: string; createdAt: string }
+    53→export interface MoneyOut { id: string; amount: number; purpose: string; description: string | null; partyName: string | null; paymentMode: string; date: string; createdAt: string }
+    54→export interface Kot { id: string; kotNumber: string; tableNumber: string | null; status: string; items: string; createdAt: string }
+    55→
+    56→// ─── Indian Currency Format ───
+    57→export const catColors: Record<string, string> = {
+    58→  'Grocery': 'bg-amber-50 text-amber-700 border-amber-200',
+    59→  'Dairy': 'bg-sky-50 text-sky-700 border-sky-200',
+    60→  'Personal Care': 'bg-pink-50 text-pink-700 border-pink-200',
+    61→  'Household': 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    62→  'General': 'bg-slate-50 text-slate-700 border-slate-200',
+    63→}
+    64→export const emojis: Record<string, string> = { 'rice': '🍚', 'oil': '🫒', 'flour': '🌾', 'sugar': '🍬', 'tea': '☕', 'milk': '🥛', 'dal': '🫘', 'salt': '🧂', 'shampoo': '🧴', 'soap': '🧼', 'toothpaste': '🪥', 'detergent': '🧹' }
+    65→export function getEmoji(n: string) { const l = n.toLowerCase(); for (const [k, e] of Object.entries(emojis)) { if (l.includes(k)) return e } return '📦' }
+    66→export function rs(a: number) { return `Rs. ${a.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` }
+    67→
+    68→// ─── Nav Structure (Ezo-inspired) ───
+    69→export const mainNav = [
+    70→  { id: 'dashboard' as const, label: 'Dashboard', icon: Home },
+    71→  { id: 'products' as const, label: 'Items', icon: Package },
+    72→  { id: 'sales' as const, label: 'Sale', icon: ShoppingCart },
+    73→  { id: 'history' as const, label: 'Sale List', icon: Clock },
+    74→]
+    75→export const sideMenuSections = [
+    76→  { title: 'Main', items: [
+    77→    { id: 'dashboard' as const, label: 'Dashboard', icon: Home, desc: 'Business overview', color: 'text-blue-600 bg-blue-50' },
+    78→    { id: 'products' as const, label: 'Item List', icon: Package, desc: 'Product catalog', color: 'text-violet-600 bg-violet-50' },
+    79→  ]},
+    80→  { title: 'Transactions', items: [
+    81→    { id: 'sales' as const, label: 'New Sale', icon: ShoppingCart, desc: 'Create bill', color: 'text-emerald-600 bg-emerald-50' },
+    82→    { id: 'history' as const, label: 'Sale List', icon: Clock, desc: 'Past bills', color: 'text-sky-600 bg-sky-50' },
+    83→    { id: 'purchases' as const, label: 'Purchase List', icon: ShoppingBag, desc: 'Purchase records', color: 'text-orange-600 bg-orange-50' },
+    84→    { id: 'estimates' as const, label: 'Estimate List', icon: FileText, desc: 'Quotations', color: 'text-teal-600 bg-teal-50' },
+    85→    { id: 'orders' as const, label: 'Order List', icon: Receipt, desc: 'Pending orders', color: 'text-indigo-600 bg-indigo-50' },
+    86→    { id: 'expenses' as const, label: 'Expense List', icon: HandCoins, desc: 'Business expenses', color: 'text-rose-600 bg-rose-50' },
+    87→    { id: 'moneyin' as const, label: 'Money In List', icon: ArrowUpRight, desc: 'Incoming payments', color: 'text-emerald-600 bg-emerald-50' },
+    88→    { id: 'moneyout' as const, label: 'Money Out List', icon: ArrowUpRight, desc: 'Outgoing payments', color: 'text-red-600 bg-red-50' },
+    89→  ]},
+    90→  { title: 'People', items: [
+    91→    { id: 'customers' as const, label: 'Party List', icon: Users, desc: 'Customers & vendors', color: 'text-blue-600 bg-blue-50' },
+    92→    { id: 'suppliers' as const, label: 'Suppliers', icon: Truck, desc: 'Manage suppliers', color: 'text-amber-600 bg-amber-50' },
+    93→    { id: 'kot' as const, label: 'Kot List', icon: Printer, desc: 'Kitchen orders', color: 'text-fuchsia-600 bg-fuchsia-50' },
+    94→    { id: 'users' as const, label: 'Staff List', icon: UserCog, desc: 'Admin & staff', color: 'text-violet-600 bg-violet-50' },
+    95→  ]},
+    96→  { title: 'Analytics', items: [
+    97→    { id: 'reports' as const, label: 'Reports', icon: BarChart3, desc: 'Sales analytics', color: 'text-emerald-600 bg-emerald-50' },
+    98→  ]},
+    99→  { title: 'System', items: [
+   100→    { id: 'settings' as const, label: 'Settings', icon: Settings, desc: 'Shop & billing', color: 'text-slate-600 bg-slate-50' },
+   101→    { id: 'backup' as const, label: 'Backup', icon: Cloud, desc: 'Data safety', color: 'text-sky-600 bg-sky-50' },
+   102→  ]},
+   103→]
+   104→export const moreSections = sideMenuSections.slice(2) // People, Analytics, System for mobile "More"
+   105→export const allNavIds = [...mainNav.map(n => n.id), ...sideMenuSections.flatMap(s => s.items.map(i => i.id))]
+   106→
+   107→// ─── API Hooks ───
+   108→export function useProducts(s?: string) { return useQuery({ queryKey: ['products', s], queryFn: async () => { const r = await fetch(`/api/products${s ? `?search=${encodeURIComponent(s)}` : ''}`); return r.json() as Promise<Product[]> }, staleTime: 30000 }) }
+   109→export function useSales(p?: string) { return useQuery({ queryKey: ['sales', p], queryFn: async () => { const r = await fetch(`/api/sales${p ? `?period=${p}` : ''}`); return r.json() as Promise<Sale[]> }, staleTime: 15000 }) }
+   110→export function useCustomers() { return useQuery({ queryKey: ['customers'], queryFn: async () => { const r = await fetch('/api/customers'); return r.json() as Promise<Customer[]> }, staleTime: 30000 }) }
+   111→export function useSuppliers() { return useQuery({ queryKey: ['suppliers'], queryFn: async () => { const r = await fetch('/api/suppliers'); return r.json() as Promise<Supplier[]> }, staleTime: 30000 }) }
+   112→export function useAppUsers() { return useQuery({ queryKey: ['users'], queryFn: async () => { const r = await fetch('/api/users'); return r.json() as Promise<AppUser[]> }, staleTime: 30000 }) }
+   113→export function useShopSettings() { return useQuery({ queryKey: ['settings'], queryFn: async () => { const r = await fetch('/api/settings'); return r.json() as Promise<ShopSettings> }, staleTime: 60000 }) }
+   114→export function useDashboardData() { return useQuery({ queryKey: ['dashboard'], queryFn: async () => { const r = await fetch('/api/dashboard'); return r.json() as Promise<DashboardData> }, refetchInterval: 10000, staleTime: 5000 }) }
+   115→export function usePurchases(p?: string) { return useQuery({ queryKey: ['purchases', p], queryFn: async () => { const r = await fetch(`/api/purchases${p ? `?period=${p}` : ''}`); return r.json() as Promise<Purchase[]> }, staleTime: 15000 }) }
+   116→export function useEstimates(s?: string) { return useQuery({ queryKey: ['estimates', s], queryFn: async () => { const r = await fetch(`/api/estimates${s ? `?status=${s}` : ''}`); return r.json() as Promise<Estimate[]> }, staleTime: 15000 }) }
+   117→export function useOrders(s?: string) { return useQuery({ queryKey: ['orders', s], queryFn: async () => { const r = await fetch(`/api/orders${s ? `?status=${s}` : ''}`); return r.json() as Promise<Order[]> }, staleTime: 15000 }) }
+   118→export function useExpenses(c?: string, p?: string) { return useQuery({ queryKey: ['expenses', c, p], queryFn: async () => { const params = new URLSearchParams(); if (c && c !== 'all') params.set('category', c); if (p && p !== 'all') params.set('period', p); const r = await fetch(`/api/expenses?${params}`); return r.json() as Promise<Expense[]> }, staleTime: 15000 }) }
+   119→export function useMoneyIn() { return useQuery({ queryKey: ['moneyin'], queryFn: async () => { const r = await fetch('/api/moneyin'); return r.json() as Promise<MoneyIn[]> }, staleTime: 15000 }) }
+   120→export function useMoneyOut() { return useQuery({ queryKey: ['moneyout'], queryFn: async () => { const r = await fetch('/api/moneyout'); return r.json() as Promise<MoneyOut[]> }, staleTime: 15000 }) }
+   121→export function useKots(s?: string) { return useQuery({ queryKey: ['kots', s], queryFn: async () => { const r = await fetch(`/api/kots${s ? `?status=${s}` : ''}`); return r.json() as Promise<Kot[]> }, staleTime: 10000 }) }
+   122→
+   123→// ─── 3D Tilt Card Hook (with touch support) ───
+   124→export function useTilt() {
+   125→  const [style, setStyle] = useState<React.CSSProperties>({})
+   126→  const onMove = useCallback((e: React.MouseEvent<HTMLElement>) => {
+   127→    const el = e.currentTarget
+   128→    const rect = el.getBoundingClientRect()
+   129→    const x = (e.clientX - rect.left) / rect.width - 0.5
+   130→    const y = (e.clientY - rect.top) / rect.height - 0.5
+   131→    setStyle({ transform: `perspective(800px) rotateY(${x * 10}deg) rotateX(${-y * 10}deg) translateZ(12px) scale(1.03)` })
+   132→  }, [])
+   133→  const onTouch = useCallback((e: React.TouchEvent<HTMLElement>) => {
+   134→    const el = e.currentTarget
+   135→    const rect = el.getBoundingClientRect()
+   136→    const t = e.touches[0]
+   137→    const x = (t.clientX - rect.left) / rect.width - 0.5
+   138→    const y = (t.clientY - rect.top) / rect.height - 0.5
+   139→    setStyle({ transform: `perspective(800px) rotateY(${x * 6}deg) rotateX(${-y * 6}deg) translateZ(8px) scale(1.02)` })
+   140→  }, [])
+   141→  const onLeave = useCallback(() => setStyle({ transform: 'perspective(800px) rotateY(0deg) rotateX(0deg) translateZ(0px) scale(1)', transition: 'transform 0.4s cubic-bezier(0.16, 1, 0.3, 1)' }), [])
+   142→  return { style, onMove, onTouch, onLeave }
+   143→}
+   144→
+   145→// ─── Live Clock ───
+   146→export function LiveClock() {
+   147→  const [t, setT] = useState<Date | null>(null)
+   148→  useEffect(() => {
+   149→    setT(new Date())
+   150→    const i = setInterval(() => setT(new Date()), 1000)
+   151→    return () => clearInterval(i)
+   152→  }, [])
+   153→  return (
+   154→    <span className="text-[11px] text-slate-400 tabular-nums font-medium">
+   155→      {t ? t.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }) : '--:--:-- --'}
+   156→    </span>
+   157→  )
+   158→}
+   159→
+   160→// ─── Logo ───
+   161→export function Logo({ size = 'md' }: { size?: 'sm' | 'md' }) {
+   162→  const s = { sm: 'h-7 w-7 text-[11px]', md: 'h-9 w-9 text-sm' }
+   163→  return <div className={`${s[size]} gradient-primary rounded-xl flex items-center justify-center font-extrabold text-white shrink-0 shadow-blue-3d`}>S</div>
+   164→}
+   165→
+   166→// ─── 3D Stat Card ───
+   167→export function StatCard({ title, value, sub, icon: Icon, color, bg, delay, trend }: { title: string; value: string; sub: string; icon: any; color: string; bg: string; delay: number; trend?: string }) {
+   168→  const { style, onMove, onTouch, onLeave } = useTilt()
+   169→  return (
+   170→    <motion.div initial={{ opacity: 0, y: 20, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ delay, duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+   171→      className="card-3d" onMouseMove={onMove} onTouchMove={onTouch} onMouseLeave={onLeave} onTouchEnd={onLeave} style={style}>
+   172→      <Card className="border-0 shadow-3d-card hover:shadow-3d-card-hover transition-shadow duration-300 group cursor-default overflow-hidden rounded-2xl">
+   173→        <CardContent className="p-3 sm:p-5 relative">
+   174→          <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full opacity-[0.06]" style={{ background: color.includes('emerald') ? '#059669' : color.includes('blue') ? '#2563EB' : color.includes('violet') ? '#7C3AED' : '#D97706' }} />
+   175→          <div className="flex items-center justify-between relative z-10">
+   176→            <div className="min-w-0">
+   177→              <p className="text-[10px] sm:text-[13px] font-medium text-slate-500 tracking-wide uppercase">{title}</p>
+   178→              <p className="text-lg sm:text-[26px] font-bold text-slate-900 mt-0.5 tracking-tight">{value}</p>
+   179→              <p className="text-[9px] sm:text-xs text-slate-400 mt-0.5 flex items-center gap-1">{trend === 'up' && <ArrowUpRight className="h-3 w-3 text-emerald-500" />}{sub}</p>
+   180→            </div>
+   181→            <div className={`${bg} p-2 sm:p-3 rounded-xl sm:rounded-2xl group-hover:scale-110 transition-transform duration-300 shrink-0`}>
+   182→              <Icon className={`h-4 w-4 sm:h-5 sm:w-5 ${color}`} />
+   183→            </div>
+   184→          </div>
+   185→        </CardContent>
+   186→      </Card>
+   187→    </motion.div>
+   188→  )
+   189→}
+   190→
+   191→// ─── Empty & Skeleton ───
+   192→export function Empty({ icon: I, text }: { icon: any; text: string }) { return <div className="text-center py-12 text-slate-400"><I className="h-10 w-10 mx-auto mb-2 opacity-20" /><p className="text-sm">{text}</p></div> }
+   193→export function EmptyChart() { return <div className="h-[200px] sm:h-[280px] flex items-center justify-center text-slate-400"><div className="text-center"><BarChart3 className="h-10 w-10 mx-auto mb-2 opacity-20" /><p className="text-sm">No data yet</p></div></div> }
+   194→
+   195→// ─── Reusable Filter Components ───
+   196→export function FilterChip({ label, active, onClick, color = 'blue' }: { label: string; active: boolean; onClick: () => void; color?: string }) {
+   197→  const colors: Record<string, { active: string; inactive: string }> = {
+   198→    blue: { active: 'bg-blue-100 text-blue-700 border-blue-300', inactive: 'bg-white text-slate-600 border-slate-200 hover:bg-blue-50 hover:border-blue-200' },
+   199→    emerald: { active: 'bg-emerald-100 text-emerald-700 border-emerald-300', inactive: 'bg-white text-slate-600 border-slate-200 hover:bg-emerald-50 hover:border-emerald-200' },
+   200→    amber: { active: 'bg-amber-100 text-amber-700 border-amber-300', inactive: 'bg-white text-slate-600 border-slate-200 hover:bg-amber-50 hover:border-amber-200' },
+   201→    violet: { active: 'bg-violet-100 text-violet-700 border-violet-300', inactive: 'bg-white text-slate-600 border-slate-200 hover:bg-violet-50 hover:border-violet-200' },
+   202→    rose: { active: 'bg-rose-100 text-rose-700 border-rose-300', inactive: 'bg-white text-slate-600 border-slate-200 hover:bg-rose-50 hover:border-rose-200' },
+   203→  }
+   204→  const c = colors[color] || colors.blue
+   205→  return (
+   206→    <motion.button whileTap={{ scale: 0.95 }} onClick={onClick}
+   207→      className={`inline-flex items-center gap-1 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full border text-[9px] sm:text-[11px] font-medium transition-all duration-200 ${active ? c.active : c.inactive}`}>
+   208→      {label}
+   209→      {active && <X className="h-2.5 w-2.5 ml-0.5" />}
+   210→    </motion.button>
+   211→  )
+   212→}
+   213→
+   214→export function FilterBar({ children, onClear, activeCount }: { children: React.ReactNode; onClear: () => void; activeCount: number }) {
+   215→  return (
+   216→    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
+   217→      className="bg-white/80 backdrop-blur-sm rounded-xl border border-slate-100 p-2.5 sm:p-3 space-y-2">
+   218→      <div className="flex items-center justify-between">
+   219→        <div className="flex items-center gap-1.5">
+   220→          <SlidersHorizontal className="h-3.5 w-3.5 text-slate-400" />
+   221→          <span className="text-[10px] sm:text-xs font-semibold text-slate-700">Filters</span>
+   222→          {activeCount > 0 && <Badge className="bg-blue-100 text-blue-700 text-[8px] px-1.5 py-0 h-4 border-0">{activeCount} active</Badge>}
+   223→        </div>
+   224→        {activeCount > 0 && (
+   225→          <Button variant="ghost" size="sm" onClick={onClear} className="h-6 text-[9px] sm:text-[10px] text-slate-500 hover:text-red-500 gap-1 px-2">
+   226→            <RotateCcw className="h-2.5 w-2.5" />Clear All
+   227→          </Button>
+   228→        )}
+   229→      </div>
+   230→      <div className="flex flex-wrap gap-1 sm:gap-1.5">{children}</div>
+   231→    </motion.div>
+   232→  )
+   233→}
+   234→
+   235→export function SortSelect({ value, onChange, options }: { value: string; onChange: (v: string) => void; options: { value: string; label: string }[] }) {
+   236→  return (
+   237→    <div className="flex items-center gap-1">
+   238→      <ArrowUpDown className="h-3 w-3 text-slate-400" />
+   239→      <Select value={value} onValueChange={onChange}>
+   240→        <SelectTrigger className="h-7 sm:h-8 w-28 sm:w-36 text-[9px] sm:text-xs border-slate-200 bg-white">
+   241→          <SelectValue />
+   242→        </SelectTrigger>
+   243→        <SelectContent>
+   244→          {options.map(o => <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>)}
+   245→        </SelectContent>
+   246→      </Select>
+   247→    </div>
+   248→  )
+   249→}
+   250→
+   251→// ─── Settings Toggle ───
+   252→export function SettingToggle({ label, desc, defaultOn = false, icon: Icon }: { label: string; desc?: string; defaultOn?: boolean; icon?: any }) {
+   253→  const [on, setOn] = useState(defaultOn)
+   254→  return (
+   255→    <div className="flex items-center justify-between py-2.5 px-1">
+   256→      <div className="flex items-center gap-2.5 min-w-0">
+   257→        {Icon && <div className="p-1.5 rounded-lg bg-slate-50 shrink-0"><Icon className="h-3.5 w-3.5 text-slate-500" /></div>}
+   258→        <div className="min-w-0"><p className="text-xs sm:text-sm font-medium text-slate-900">{label}</p>{desc && <p className="text-[10px] sm:text-xs text-slate-400 mt-0.5">{desc}</p>}</div>
+   259→      </div>
+   260→      <button onClick={() => setOn(!on)} className={`relative h-6 w-11 rounded-full transition-all duration-200 shrink-0 ${on ? 'bg-blue-600' : 'bg-slate-200'}`}>
+   261→        <motion.div animate={{ x: on ? 20 : 2 }} transition={{ type: 'spring', stiffness: 500, damping: 30 }} className="absolute top-1 h-4 w-4 rounded-full bg-white shadow-sm" />
+   262→      </button>
+   263→    </div>
+   264→  )
+   265→}
+   266→
+   267→// ─── Settings Section Card ───
+   268→export function SettingsSection({ title, icon: Icon, color, children }: { title: string; icon: any; color: string; children: React.ReactNode }) {
+   269→  const [open, setOpen] = useState(true)
+   270→  return (
+   271→    <Card className="border-0 shadow-3d-card rounded-2xl overflow-hidden">
+   272→      <button onClick={() => setOpen(!open)} className="w-full flex items-center justify-between p-4 sm:p-5 hover:bg-slate-50/50 transition-colors">
+   273→        <div className="flex items-center gap-2.5">
+   274→          <div className={`${color} p-2 rounded-xl`}><Icon className="h-4 w-4" /></div>
+   275→          <h3 className="font-semibold text-slate-900 text-sm sm:text-[15px]">{title}</h3>
+   276→        </div>
+   277→        <motion.div animate={{ rotate: open ? 180 : 0 }} transition={{ duration: 0.2 }}><ChevronDown className="h-4 w-4 text-slate-400" /></motion.div>
+   278→      </button>
+   279→      <AnimatePresence initial={false}>{open && (
+   280→        <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2 }}>
+   281→          <div className="px-4 sm:px-5 pb-4 sm:pb-5 space-y-1">{children}</div>
+   282→        </motion.div>
+   283→      )}</AnimatePresence>
+   284→    </Card>
+   285→  )
+   286→}
+   287→
+   288→// ─── Cart Sidebar ───
+   289→export function CartSidebar() {
+   290→  const cart = useCartStore()
+   291→  const qc = useQueryClient()
+   292→  const [showInvoice, setShowInvoice] = useState(false)
+   293→  const [lastInvoice, setLastInvoice] = useState<Sale | null>(null)
+   294→  const [step, setStep] = useState<'cart' | 'processing' | 'success'>('cart')
+   295→
+   296→  const payMut = useMutation({
+   297→    mutationFn: async () => { const r = await fetch('/api/sales', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items: cart.items, subtotal: cart.getSubtotal(), discount: cart.discount, tax: cart.getTaxAmount(), taxRate: cart.taxRate, grandTotal: cart.getGrandTotal(), paymentMode: cart.paymentMode }) }); if (!r.ok) throw new Error(); return r.json() },
+   298→    onSuccess: (d) => { qc.invalidateQueries({ queryKey: ['sales'] }); qc.invalidateQueries({ queryKey: ['dashboard'] }); qc.invalidateQueries({ queryKey: ['products'] }); setLastInvoice(d); setStep('success'); cart.clearCart(); setTimeout(() => { setStep('cart'); setShowInvoice(true) }, 1500) },
+   299→    onError: () => { setStep('cart'); toast.error('Payment failed, please try again') },
+   300→  })
+   301→
+   302→  const sub = cart.getSubtotal(), tax = cart.getTaxAmount(), gt = cart.getGrandTotal(), empty = cart.items.length === 0
+   303→
+   304→  return (
+   305→    <div className="flex flex-col h-full bg-white border-l border-slate-100/80">
+   306→      <div className="p-3 sm:p-4 border-b border-slate-100 flex items-center justify-between gradient-primary text-white">
+   307→        <div className="flex items-center gap-2"><div className="relative"><ShoppingCart className="h-4 w-4 sm:h-5 sm:w-5" />{cart.items.length > 0 && <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} className="absolute -top-1.5 -right-1.5 h-3.5 w-3.5 rounded-full bg-white text-blue-600 text-[8px] font-bold flex items-center justify-center">{cart.items.length}</motion.span>}</div><h2 className="font-bold text-sm sm:text-base">Cart</h2></div>
+   308→        {cart.items.length > 0 && <Button variant="ghost" size="sm" onClick={() => cart.clearCart()} className="text-white/80 hover:text-white hover:bg-white/10 h-6 w-6 p-0"><Trash2 className="h-3.5 w-3.5" /></Button>}
+   309→      </div>
+   310→
+   311→      <div className="flex-1 overflow-hidden flex flex-col">
+   312→        <AnimatePresence mode="wait">
+   313→          {step === 'cart' && (
+   314→            <motion.div key="cart" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex-1 flex flex-col">
+   315→              <ScrollArea className="flex-1">
+   316→                {empty ? <div className="flex flex-col items-center justify-center h-48 sm:h-64 text-slate-400"><div className="h-14 w-14 rounded-2xl bg-slate-50 flex items-center justify-center mb-2"><ShoppingCart className="h-6 w-6 opacity-25" /></div><p className="text-xs sm:text-sm font-medium">Cart is empty</p><p className="text-[10px] sm:text-xs mt-0.5">Add products to start</p></div>
+   317→                : <div className="p-2 sm:p-3 space-y-1.5"><AnimatePresence initial={false}>{cart.items.map((item) => (
+   318→                    <motion.div key={item.productId} initial={{ opacity: 0, x: 20, height: 0 }} animate={{ opacity: 1, x: 0, height: 'auto' }} exit={{ opacity: 0, x: -20, height: 0 }} transition={{ duration: 0.15 }} layout>
+   319→                      <div className="bg-slate-50/80 rounded-xl p-2 sm:p-2.5">
+   320→                        <div className="flex items-start justify-between"><div className="flex items-center gap-1.5 min-w-0"><span className="text-sm shrink-0">{getEmoji(item.name)}</span><div className="min-w-0"><p className="text-[10px] sm:text-xs font-medium text-slate-900 truncate">{item.name}</p><p className="text-[8px] sm:text-[11px] text-slate-400">{rs(item.price)}/{item.unit}</p></div></div>
+   321→                          <Button variant="ghost" size="sm" className="h-5 w-5 p-0 text-slate-400 hover:text-red-500" onClick={() => cart.removeItem(item.productId)}><X className="h-2.5 w-2.5" /></Button></div>
+   322→                        <div className="flex items-center justify-between mt-1.5 sm:mt-2">
+   323→                          <div className="flex items-center gap-1"><motion.button whileTap={{ scale: 0.8 }} className="h-5 w-5 sm:h-6 sm:w-6 rounded-lg border border-slate-200 flex items-center justify-center hover:bg-slate-100 text-slate-600" onClick={() => cart.updateQuantity(item.productId, item.quantity - 1)}><Minus className="h-2 w-2 sm:h-2.5 sm:w-2.5" /></motion.button>
+   324→                            <motion.span key={item.quantity} initial={{ scale: 1.3 }} animate={{ scale: 1 }} className="text-[10px] sm:text-xs font-semibold w-6 sm:w-7 text-center tabular-nums">{item.quantity}</motion.span>
+   325→                            <motion.button whileTap={{ scale: 0.8 }} className="h-5 w-5 sm:h-6 sm:w-6 rounded-lg border border-slate-200 flex items-center justify-center hover:bg-slate-100 text-slate-600" onClick={() => cart.updateQuantity(item.productId, item.quantity + 1)}><Plus className="h-2 w-2 sm:h-2.5 sm:w-2.5" /></motion.button></div>
+   326→                          <motion.p key={item.total} initial={{ scale: 1.1 }} animate={{ scale: 1 }} className="text-[10px] sm:text-xs font-bold text-slate-900 tabular-nums">{rs(item.total)}</motion.p></div>
+   327→                      </div>
+   328→                    </motion.div>
+   329→                  ))}</AnimatePresence></div>}
+   330→              </ScrollArea>
+   331→
+   332→              {!empty && (
+   333→                <div className="border-t border-slate-100 p-2.5 sm:p-4 space-y-2 sm:space-y-2.5 bg-white">
+   334→                  <div className="flex items-center gap-1.5"><Label className="text-[8px] sm:text-[11px] text-slate-500 shrink-0 uppercase tracking-wider">Discount Rs.</Label><Input type="number" value={cart.discount || ''} onChange={(e) => cart.setDiscount(parseFloat(e.target.value) || 0)} className="h-6 sm:h-7 text-[10px] sm:text-[11px] w-16 sm:w-20" placeholder="0" /></div>
+   335→                  <div className="space-y-0.5 sm:space-y-1 text-[10px] sm:text-[13px]">
+   336→                    <div className="flex justify-between text-slate-500"><span>Sub Total</span><motion.span key={sub} initial={{ opacity: 0.6 }} animate={{ opacity: 1 }} className="tabular-nums font-medium text-slate-700">{rs(sub)}</motion.span></div>
+   337→                    {cart.discount > 0 && <div className="flex justify-between text-red-500"><span>Discount</span><span className="tabular-nums">-{rs(cart.discount)}</span></div>}
+   338→                    <div className="flex justify-between text-slate-500"><span>Tax ({cart.taxRate}%)</span><motion.span key={tax} initial={{ opacity: 0.6 }} animate={{ opacity: 1 }} className="tabular-nums font-medium text-slate-700">{rs(tax)}</motion.span></div>
+   339→                    <Separator />
+   340→                    <motion.div layout className="flex justify-between font-bold text-sm sm:text-lg text-slate-900 pt-0.5"><span>Grand Total</span><motion.span key={gt} initial={{ scale: 1.05, color: '#2563EB' }} animate={{ scale: 1, color: '#0f172a' }} className="tabular-nums">{rs(gt)}</motion.span></motion.div>
+   341→                  </div>
+   342→                  <div className="space-y-1 sm:space-y-1.5">
+   343→                    <Label className="text-[8px] sm:text-[11px] text-slate-500 uppercase tracking-wider">Payment</Label>
+   344→                    <div className="grid grid-cols-4 gap-0.5 sm:gap-1">
+   345→                      {[{ m: 'Cash', i: Banknote }, { m: 'Card', i: CreditCard }, { m: 'UPI', i: QrCode }, { m: 'Wallet', i: Wallet }].map(({ m, i: Ic }) => (
+   346→                        <motion.button key={m} whileTap={{ scale: 0.9 }} className={`flex flex-col items-center py-1 sm:py-2 rounded-xl text-[7px] sm:text-[10px] font-semibold transition-all duration-200 ${cart.paymentMode === m ? 'gradient-primary text-white shadow-blue-3d' : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200'}`} onClick={() => cart.setPaymentMode(m)}>
+   347→                          <Ic className="h-2.5 w-2.5 sm:h-3.5 sm:w-3.5 mb-0.5" />{m}
+   348→                        </motion.button>
+   349→                      ))}
+   350→                    </div>
+   351→                  </div>
+   352→                  <motion.div whileTap={{ scale: 0.98 }}><Button className="w-full gradient-primary shadow-blue-3d h-8 sm:h-11 text-xs sm:text-[15px] font-semibold rounded-xl" disabled={payMut.isPending} onClick={() => { setStep('processing'); payMut.mutate() }}><Zap className="h-3 w-3 sm:h-4 sm:w-4 mr-1.5" />Pay {rs(gt)}</Button></motion.div>
+   353→                </div>
+   354→              )}
+   355→            </motion.div>
+   356→          )}
+   357→
+   358→          {step === 'processing' && (
+   359→            <motion.div key="proc" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex-1 flex flex-col items-center justify-center text-center p-5">
+   360→              <div className="relative mb-5"><div className="h-14 w-14 sm:h-20 sm:w-20 rounded-full border-[3px] border-blue-100 border-t-blue-600 animate-spin" /><div className="absolute inset-0 flex items-center justify-center"><TrendingUp className="h-5 w-5 sm:h-7 sm:w-7 text-blue-600" /></div></div>
+   361→              <p className="text-sm sm:text-lg font-semibold text-slate-900">Processing Payment</p>
+   362→              <p className="text-xs sm:text-sm text-slate-500 mt-1">Please wait...</p>
+   363→              <div className="flex gap-1 mt-3">{[0,1,2].map(i => <motion.div key={i} animate={{ opacity: [0.3,1,0.3] }} transition={{ duration: 1, repeat: Infinity, delay: i * 0.2 }} className="h-1.5 w-1.5 rounded-full bg-blue-600" />)}</div>
+   364→            </motion.div>
+   365→          )}
+   366→
+   367→          {step === 'success' && (
+   368→            <motion.div key="ok" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="flex-1 flex flex-col items-center justify-center text-center p-5">
+   369→              <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 200, damping: 15 }} className="h-14 w-14 sm:h-20 sm:w-20 rounded-full bg-emerald-100 flex items-center justify-center mb-3 shadow-green-3d"><CircleCheck className="h-7 w-7 sm:h-10 sm:w-10 text-emerald-600" /></motion.div>
+   370→              <motion.p initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="text-sm sm:text-lg font-bold text-slate-900">Payment Successful!</motion.p>
+   371→              <motion.p initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="text-[10px] sm:text-sm text-slate-500 mt-0.5">Invoice generated</motion.p>
+   372→              {lastInvoice && <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }} className="text-[9px] sm:text-xs text-slate-400 mt-1.5 font-mono">{lastInvoice.invoiceNumber}</motion.p>}
+   373→            </motion.div>
+   374→          )}
+   375→        </AnimatePresence>
+   376→      </div>
+   377→
+   378→      <Dialog open={showInvoice} onOpenChange={setShowInvoice}><DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto"><DialogHeader><DialogTitle className="flex items-center gap-2"><FileText className="h-5 w-5 text-blue-600" />Invoice</DialogTitle></DialogHeader>{lastInvoice && <InvoiceView sale={lastInvoice} />}<DialogFooter className="flex gap-2"><Button variant="outline" onClick={() => setShowInvoice(false)} className="gap-1"><X className="h-4 w-4" />Close</Button><Button className="gradient-primary shadow-blue-3d gap-1" onClick={() => window.print()}><Printer className="h-4 w-4" />Print</Button></DialogFooter></DialogContent></Dialog>
+   379→    </div>
+   380→  )
+   381→}
+   382→
+   383→// ─── Invoice ───
+   384→export function InvoiceView({ sale }: { sale: Sale }) {
+   385→  return (
+   386→    <div className="border border-slate-200 rounded-xl p-3 sm:p-5 text-sm bg-white shadow-inner-3d">
+   387→      <div className="text-center border-b border-dashed border-slate-200 pb-3 mb-3">
+   388→        <div className="flex items-center justify-center gap-2 mb-0.5"><Logo size="sm" /><h2 className="text-lg sm:text-xl font-bold text-slate-900">SmartBill</h2></div>
+   389→        <p className="text-[11px] text-slate-500">Your Shop Name Here</p><p className="text-[10px] text-slate-400">123 Market Street, City</p><p className="text-[10px] text-slate-400">Phone: +91 98765 43210</p>
+   390→      </div>
+   391→      <div className="flex justify-between mb-3 text-[11px]"><div><p className="font-semibold">Invoice: <span className="font-normal font-mono">{sale.invoiceNumber}</span></p><p className="font-semibold">Customer: <span className="font-normal">{sale.customerName || 'Walk-in'}</span></p></div><div className="text-right"><p className="font-semibold">Date: <span className="font-normal">{new Date(sale.createdAt).toLocaleDateString('en-IN')}</span></p><p className="font-semibold">Time: <span className="font-normal">{new Date(sale.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span></p></div></div>
+   392→      <table className="w-full mb-3 text-[11px]"><thead><tr className="border-b border-slate-200"><th className="text-left py-1 font-semibold text-slate-600">Item</th><th className="text-center py-1 font-semibold text-slate-600">Qty</th><th className="text-right py-1 font-semibold text-slate-600">Rate</th><th className="text-right py-1 font-semibold text-slate-600">Amount</th></tr></thead><tbody>{sale.items.map(i => <tr key={i.id} className="border-b border-slate-50"><td className="py-1 text-slate-800">{i.name}</td><td className="py-1 text-center text-slate-600">{i.quantity} {i.unit}</td><td className="py-1 text-right text-slate-600">{rs(i.price)}</td><td className="py-1 text-right font-medium text-slate-900">{rs(i.total)}</td></tr>)}</tbody></table>
+   393→      <div className="space-y-0.5 text-[11px] border-t border-dashed border-slate-200 pt-2.5">
+   394→        <div className="flex justify-between text-slate-600"><span>Sub Total</span><span>{rs(sale.subtotal)}</span></div>
+   395→        {sale.discount > 0 && <div className="flex justify-between text-red-500"><span>Discount</span><span>-{rs(sale.discount)}</span></div>}
+   396→        <div className="flex justify-between text-slate-600"><span>Tax ({sale.taxRate}%)</span><span>{rs(sale.tax)}</span></div>
+   397→        <Separator />
+   398→        <div className="flex justify-between font-bold text-base text-slate-900 pt-1"><span>Grand Total</span><span>{rs(sale.grandTotal)}</span></div>
+   399→        <div className="flex justify-between text-slate-500 text-[10px]"><span>Payment</span><span>{sale.paymentMode}</span></div>
+   400→      </div>
+   401→      <div className="text-center mt-3 pt-2.5 border-t border-dashed border-slate-200"><p className="text-[11px] text-slate-500 font-medium">Thank you! Visit Again.</p></div>
+   402→    </div>
+   403→  )
+   404→}

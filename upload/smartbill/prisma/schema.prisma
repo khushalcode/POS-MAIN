@@ -1,0 +1,176 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Product {
+  id          String  @id @default(cuid())
+  name        String
+  category    String  @default("General")
+  unit        String  @default("Pcs")
+  price       Float
+  stock       Int     @default(0)
+  image       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Customer {
+  id        String   @id @default(cuid())
+  name      String
+  phone     String?
+  email     String?
+  address   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Supplier {
+  id        String   @id @default(cuid())
+  name      String
+  phone     String?
+  email     String?
+  address   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Sale {
+  id            String   @id @default(cuid())
+  invoiceNumber String   @unique
+  customerId    String?
+  customerName  String?
+  subtotal      Float
+  discount      Float    @default(0)
+  tax           Float    @default(0)
+  taxRate       Float    @default(5)
+  grandTotal    Float
+  paymentMode   String   @default("Cash")
+  status        String   @default("completed")
+  createdAt     DateTime @default(now())
+  items         SaleItem[]
+}
+
+model SaleItem {
+  id        String  @id @default(cuid())
+  saleId    String
+  productId String?
+  name      String
+  unit      String
+  quantity  Int
+  price     Float
+  total     Float
+  sale      Sale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
+}
+
+model AppUser {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  role      String   @default("staff")
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ShopSetting {
+  id        String   @id @default(cuid())
+  shopName  String   @default("SmartBill")
+  address   String?
+  phone     String?
+  email     String?
+  taxRate   Float    @default(5)
+  currency  String   @default("Rs.")
+  invoicePrefix String @default("INV")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Purchase {
+  id            String   @id @default(cuid())
+  invoiceNumber String   @unique
+  supplierId    String?
+  supplierName  String?
+  subtotal      Float
+  tax           Float    @default(0)
+  grandTotal    Float
+  paymentMode   String   @default("Cash")
+  status        String   @default("completed")
+  createdAt     DateTime @default(now())
+}
+
+model Estimate {
+  id            String   @id @default(cuid())
+  estimateNumber String  @unique
+  customerId    String?
+  customerName  String?
+  subtotal      Float
+  discount      Float    @default(0)
+  tax           Float    @default(0)
+  grandTotal    Float
+  status        String   @default("draft")
+  validUntil    DateTime?
+  createdAt     DateTime @default(now())
+}
+
+model Order {
+  id            String   @id @default(cuid())
+  orderNumber   String   @unique
+  customerId    String?
+  customerName  String?
+  subtotal      Float
+  advance       Float    @default(0)
+  balance       Float
+  status        String   @default("pending")
+  deliveryDate  DateTime?
+  createdAt     DateTime @default(now())
+}
+
+model Expense {
+  id          String   @id @default(cuid())
+  category    String
+  description String
+  amount      Float
+  paymentMode String   @default("Cash")
+  date        DateTime @default(now())
+  createdAt   DateTime @default(now())
+}
+
+model MoneyIn {
+  id           String   @id @default(cuid())
+  amount       Float
+  source       String
+  description  String?
+  partyId      String?
+  partyName    String?
+  paymentMode  String   @default("Cash")
+  date         DateTime @default(now())
+  createdAt    DateTime @default(now())
+}
+
+model MoneyOut {
+  id           String   @id @default(cuid())
+  amount       Float
+  purpose      String
+  description  String?
+  partyId      String?
+  partyName    String?
+  paymentMode  String   @default("Cash")
+  date         DateTime @default(now())
+  createdAt    DateTime @default(now())
+}
+
+model Kot {
+  id          String   @id @default(cuid())
+  kotNumber   String   @unique
+  saleId      String?
+  tableNumber String?
+  status      String   @default("pending")
+  items       String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}

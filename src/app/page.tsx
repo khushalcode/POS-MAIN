@@ -10,6 +10,7 @@ import {
   WifiOff,
   ArrowRight,
   Store,
+  LayoutDashboard,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -17,8 +18,9 @@ import { Badge } from '@/components/ui/badge'
 import CounterMode from '@/components/counter/CounterMode'
 import KitchenMode from '@/components/kitchen/KitchenMode'
 import HistoryMode from '@/components/history/HistoryMode'
+import ManagementMode from '@/components/management/ManagementMode'
 
-type Mode = 'home' | 'counter' | 'kitchen' | 'history'
+type Mode = 'home' | 'counter' | 'kitchen' | 'history' | 'management'
 
 export default function Home() {
   // Persist current mode across refreshes (handy for kitchen tablets)
@@ -41,6 +43,7 @@ export default function Home() {
   if (mode === 'counter') return <CounterMode onExit={backHome} />
   if (mode === 'kitchen') return <KitchenMode onExit={backHome} />
   if (mode === 'history') return <HistoryMode onExit={backHome} />
+  if (mode === 'management') return <ManagementMode onExit={backHome} />
 
   return <HomeScreen onSelect={enterMode} />
 }
@@ -73,6 +76,16 @@ function HomeScreen({ onSelect }: { onSelect: (m: Mode) => void }) {
       gradient: 'from-violet-500 to-fuchsia-500',
       glow: 'shadow-violet-500/30',
       tags: ['Bill search', 'Revenue', 'Day summary'],
+    },
+    {
+      key: 'management' as Mode,
+      title: 'Management',
+      subtitle: 'Back-office: dashboard, inventory, finance, reports',
+      icon: LayoutDashboard,
+      gradient: 'from-slate-700 to-slate-900',
+      glow: 'shadow-slate-700/40',
+      tags: ['Dashboard', 'Inventory', 'Finance', 'Reports', 'Backup'],
+      span: 'md:col-span-3',
     },
   ]
 
@@ -123,31 +136,34 @@ function HomeScreen({ onSelect }: { onSelect: (m: Mode) => void }) {
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, delay: 0.1 + i * 0.08 }}
+            className={m.span}
           >
             <Card
-              className={`group cursor-pointer relative overflow-hidden border-0 shadow-xl ${m.glow} hover:shadow-2xl transition-all duration-300 hover:-translate-y-1`}
+              className={`group cursor-pointer relative overflow-hidden border-0 shadow-xl ${m.glow} hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 ${m.span ? 'min-h-[200px]' : ''}`}
               onClick={() => onSelect(m.key)}
             >
               <div className={`absolute inset-0 bg-gradient-to-br ${m.gradient} opacity-90`} />
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.25),transparent_55%)]" />
-              <div className="relative p-7 text-white">
-                <div className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center mb-5 ring-1 ring-white/30">
+              <div className={`relative p-7 text-white ${m.span ? 'md:flex md:items-center md:gap-6' : ''}`}>
+                <div className={`w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center ring-1 ring-white/30 ${m.span ? 'mb-0 md:shrink-0' : 'mb-5'}`}>
                   <m.icon className="w-7 h-7" />
                 </div>
-                <h3 className="text-2xl font-bold mb-1">{m.title}</h3>
-                <p className="text-sm text-white/85 mb-4 min-h-[40px]">{m.subtitle}</p>
-                <div className="flex flex-wrap gap-1.5 mb-5">
-                  {m.tags.map((t) => (
-                    <span
-                      key={t}
-                      className="text-[11px] font-medium px-2 py-1 rounded-md bg-white/15 backdrop-blur-sm ring-1 ring-white/20"
-                    >
-                      {t}
-                    </span>
-                  ))}
-                </div>
-                <div className="flex items-center gap-2 text-sm font-semibold">
-                  Launch <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                <div className={m.span ? 'flex-1' : ''}>
+                  <h3 className={`font-bold mb-1 ${m.span ? 'text-3xl' : 'text-2xl'}`}>{m.title}</h3>
+                  <p className="text-sm text-white/85 mb-4 min-h-[40px]">{m.subtitle}</p>
+                  <div className="flex flex-wrap gap-1.5 mb-5">
+                    {m.tags.map((t) => (
+                      <span
+                        key={t}
+                        className="text-[11px] font-medium px-2 py-1 rounded-md bg-white/15 backdrop-blur-sm ring-1 ring-white/20"
+                      >
+                        {t}
+                      </span>
+                    ))}
+                  </div>
+                  <div className="flex items-center gap-2 text-sm font-semibold">
+                    Launch <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                  </div>
                 </div>
               </div>
             </Card>

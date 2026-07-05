@@ -20,6 +20,9 @@ export interface MenuItem {
   name: string
   category: string
   price: number
+  cost: number
+  stock: number
+  unit: string
   available: boolean
   createdAt: string
   updatedAt: string
@@ -116,4 +119,117 @@ export interface TablePayload {
   tableId: string
   tableNumber: number
   orderId?: string
+}
+
+// ─── Management entities ───
+export interface Customer {
+  id: string
+  name: string
+  phone?: string | null
+  email?: string | null
+  address?: string | null
+  notes?: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface Supplier {
+  id: string
+  name: string
+  phone?: string | null
+  email?: string | null
+  address?: string | null
+  notes?: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface Purchase {
+  id: string
+  invoiceNumber: string
+  supplierId?: string | null
+  supplierName?: string | null
+  subtotal: number
+  taxAmount: number
+  total: number
+  paymentMode: string
+  notes?: string | null
+  items: string // JSON string
+  createdAt: string
+}
+
+export interface Expense {
+  id: string
+  category: string
+  description: string
+  amount: number
+  paymentMode: string
+  date: string
+  createdAt: string
+}
+
+export interface MoneyIn {
+  id: string
+  amount: number
+  source: string
+  description?: string | null
+  partyName?: string | null
+  paymentMode: string
+  date: string
+  createdAt: string
+}
+
+export interface MoneyOut {
+  id: string
+  amount: number
+  purpose: string
+  description?: string | null
+  partyName?: string | null
+  paymentMode: string
+  date: string
+  createdAt: string
+}
+
+export interface AppUser {
+  id: string
+  name: string
+  email: string
+  role: 'admin' | 'staff'
+  active: boolean
+  createdAt: string
+}
+
+export interface ShopSettings {
+  id: string
+  shopName: string
+  address?: string | null
+  phone?: string | null
+  email?: string | null
+  gstin?: string | null
+  taxRate: number
+  serviceRate: number
+  currency: string
+  invoicePrefix: string
+  kotPrefix: string
+  footerNote: string
+}
+
+export interface DashboardData {
+  today: { revenue: number; count: number; expenses: number; purchases: number }
+  month: { revenue: number; count: number }
+  allTime: { revenue: number; count: number }
+  catalog: { menuItems: number; customers: number; suppliers: number }
+  tables: { occupied: number; total: number }
+  chartData: Array<{ date: string; total: number }>
+  topItems: Array<{ name: string; qty: number; revenue: number }>
+  recentBills: Array<Bill & { order: { items: OrderItem[] } }>
+  lowStock: MenuItem[]
+  cashFlow: {
+    salesIn: number
+    otherIn: number
+    expenses: number
+    purchases: number
+    otherOut: number
+    net: number
+  }
 }

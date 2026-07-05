@@ -16,6 +16,9 @@ model MenuItem {
   name      String
   category  String   @default("General")
   price     Float
+  cost      Float    @default(0)
+  stock     Int      @default(0)
+  unit      String   @default("Pcs")
   available Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -114,4 +117,122 @@ model Bill {
 
   @@index([paidAt])
   @@index([tableNumber])
+}
+
+// ---- Customers ----------------------------------------------------------
+model Customer {
+  id        String   @id @default(cuid())
+  name      String
+  phone     String?
+  email     String?
+  address   String?
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([name])
+  @@index([phone])
+}
+
+// ---- Suppliers ----------------------------------------------------------
+model Supplier {
+  id        String   @id @default(cuid())
+  name      String
+  phone     String?
+  email     String?
+  address   String?
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([name])
+}
+
+// ---- Purchases (stock in) ----------------------------------------------
+model Purchase {
+  id            String   @id @default(cuid())
+  invoiceNumber String   @unique
+  supplierId    String?
+  supplierName  String?
+  subtotal      Float
+  taxAmount     Float    @default(0)
+  total         Float
+  paymentMode   String   @default("cash")
+  notes         String?
+  items         String   // JSON: [{ name, qty, price, total }]
+  createdAt     DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+// ---- Expenses -----------------------------------------------------------
+model Expense {
+  id          String   @id @default(cuid())
+  category    String
+  description String
+  amount      Float
+  paymentMode String   @default("cash")
+  date        DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  @@index([date])
+  @@index([category])
+}
+
+// ---- Money In (cash inflow other than sales) ---------------------------
+model MoneyIn {
+  id          String   @id @default(cuid())
+  amount      Float
+  source      String
+  description String?
+  partyName   String?
+  paymentMode String   @default("cash")
+  date        DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  @@index([date])
+}
+
+// ---- Money Out (cash outflow other than purchases/expenses) ------------
+model MoneyOut {
+  id          String   @id @default(cuid())
+  amount      Float
+  purpose     String
+  description String?
+  partyName   String?
+  paymentMode String   @default("cash")
+  date        DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  @@index([date])
+}
+
+// ---- App Users (admin/staff) -------------------------------------------
+model AppUser {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  role      String   @default("staff") // admin | staff
+  password  String
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ---- Shop Settings (singleton) -----------------------------------------
+model ShopSetting {
+  id            String   @id @default(cuid())
+  shopName      String   @default("ServingSync Restaurant")
+  address       String?
+  phone         String?
+  email         String?
+  gstin         String?
+  taxRate       Float    @default(5)
+  serviceRate   Float    @default(0)
+  currency      String   @default("Rs.")
+  invoicePrefix String   @default("INV")
+  kotPrefix     String   @default("KOT")
+  footerNote    String   @default("Thank you for dining with us!")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }

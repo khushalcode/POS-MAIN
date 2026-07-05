@@ -14,12 +14,20 @@ export async function GET(req: NextRequest) {
 // POST /api/menu — create a menu item
 export async function POST(req: NextRequest) {
   const body = await req.json()
-  const { name, category, price, available = true } = body
+  const { name, category, price, cost = 0, stock = 0, unit = 'Pcs', available = true } = body
   if (!name || price == null) {
     return NextResponse.json({ error: 'name and price are required' }, { status: 400 })
   }
   const item = await db.menuItem.create({
-    data: { name, category: category || 'General', price: Number(price), available },
+    data: {
+      name,
+      category: category || 'General',
+      price: Number(price),
+      cost: Number(cost),
+      stock: Number(stock),
+      unit,
+      available,
+    },
   })
   return NextResponse.json({ item }, { status: 201 })
 }
