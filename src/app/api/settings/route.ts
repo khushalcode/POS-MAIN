@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ settings })
 }
 
-// PUT — update shop-scoped settings
+// PUT — update shop-scoped settings (including bill/KOT style)
 export async function PUT(req: NextRequest) {
   const shopId = getShopId(req)
   if (!shopId) return NextResponse.json({ error: 'Shop ID required' }, { status: 400 })
@@ -38,6 +38,7 @@ export async function PUT(req: NextRequest) {
   const updated = await db.shopSetting.update({
     where: { shopId },
     data: {
+      // Basic
       ...(b.shopName != null && { shopName: b.shopName }),
       ...(b.address != null && { address: b.address }),
       ...(b.phone != null && { phone: b.phone }),
@@ -49,6 +50,30 @@ export async function PUT(req: NextRequest) {
       ...(b.invoicePrefix != null && { invoicePrefix: b.invoicePrefix }),
       ...(b.kotPrefix != null && { kotPrefix: b.kotPrefix }),
       ...(b.footerNote != null && { footerNote: b.footerNote }),
+      // Bill style
+      ...(b.billShowLogo != null && { billShowLogo: b.billShowLogo }),
+      ...(b.billShowGstin != null && { billShowGstin: b.billShowGstin }),
+      ...(b.billShowPhone != null && { billShowPhone: b.billShowPhone }),
+      ...(b.billShowAddress != null && { billShowAddress: b.billShowAddress }),
+      ...(b.billShowEmail != null && { billShowEmail: b.billShowEmail }),
+      ...(b.billShowDateTime != null && { billShowDateTime: b.billShowDateTime }),
+      ...(b.billShowWaiter != null && { billShowWaiter: b.billShowWaiter }),
+      ...(b.billShowCustomer != null && { billShowCustomer: b.billShowCustomer }),
+      ...(b.billShowKotNo != null && { billShowKotNo: b.billShowKotNo }),
+      ...(b.billFontSize != null && { billFontSize: Number(b.billFontSize) }),
+      ...(b.billHeaderAlign != null && { billHeaderAlign: b.billHeaderAlign }),
+      ...(b.billExtraNote != null && { billExtraNote: b.billExtraNote || null }),
+      ...(b.billAccentColor != null && { billAccentColor: b.billAccentColor }),
+      // KOT style
+      ...(b.kotShowLogo != null && { kotShowLogo: b.kotShowLogo }),
+      ...(b.kotShowWaiter != null && { kotShowWaiter: b.kotShowWaiter }),
+      ...(b.kotShowDateTime != null && { kotShowDateTime: b.kotShowDateTime }),
+      ...(b.kotShowTable != null && { kotShowTable: b.kotShowTable }),
+      ...(b.kotShowGuests != null && { kotShowGuests: b.kotShowGuests }),
+      ...(b.kotFontSize != null && { kotFontSize: Number(b.kotFontSize) }),
+      ...(b.kotHeaderAlign != null && { kotHeaderAlign: b.kotHeaderAlign }),
+      ...(b.kotAccentColor != null && { kotAccentColor: b.kotAccentColor }),
+      ...(b.kotExtraNote != null && { kotExtraNote: b.kotExtraNote || null }),
     },
   })
   return NextResponse.json({ settings: updated })

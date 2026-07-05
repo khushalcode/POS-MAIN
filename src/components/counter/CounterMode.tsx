@@ -59,6 +59,7 @@ export default function CounterMode({ onExit, directMode }: CounterModeProps) {
   const [kotNo, setKotNo] = useState(0)
   const [showBilling, setShowBilling] = useState(false)
   const [billNo, setBillNo] = useState(1001)
+  const [settings, setSettings] = useState<any>(null)
   const [busy, setBusy] = useState(false)
 
   // ----- Initial loads -----
@@ -80,14 +81,24 @@ export default function CounterMode({ onExit, directMode }: CounterModeProps) {
     setBillNo(data.nextNo)
   }, [shopFetch])
 
+  const loadSettings = useCallback(async () => {
+    try {
+      const res = await shopFetch('/api/settings')
+      const data = await res.json()
+      setSettings(data.settings)
+    } catch {
+      // settings are optional; fall back to defaults
+    }
+  }, [shopFetch])
+
   useEffect(() => {
     ;(async () => {
       setLoading(true)
       await shopFetch('/api/tables/seed', { method: 'POST' })
-      await Promise.all([loadTables(), loadMenu(), loadBillNo()])
+      await Promise.all([loadTables(), loadMenu(), loadBillNo(), loadSettings()])
       setLoading(false)
     })()
-  }, [loadTables, loadMenu, loadBillNo, shopFetch, currentShop?.id])
+  }, [loadTables, loadMenu, loadBillNo, loadSettings, shopFetch, currentShop?.id])
 
   // ----- Auto-start direct order if directMode prop is set -----
   const [directStarted, setDirectStarted] = useState(false)
@@ -602,7 +613,7 @@ export default function CounterMode({ onExit, directMode }: CounterModeProps) {
           { label: 'Customer Copy', banner: '*** CUSTOMER COPY ***' },
         ]}
       >
-        {order && <KOTReceipt order={order} kotNo={kotNo} />}
+        {order && <KOTReceipt order={order} kotNo={kotNo} style={settings} />}
       </PrintPreview>
 
       {/* Billing dialog */}
@@ -610,6 +621,7 @@ export default function CounterMode({ onExit, directMode }: CounterModeProps) {
         open={showBilling}
         order={order}
         billNo={billNo}
+        settings={settings}
         onClose={() => setShowBilling(false)}
         onConfirm={confirmBill}
         onAfterBill={() => {

@@ -228,3 +228,63 @@ Stage Summary:
 - Direct Order card on landing page for fast takeaway flow
 - All data filtered by shop — no cross-shop leakage
 - Demo credentials: admin@spice.com/admin123, staff@spice.com/staff123, kitchen@spice.com/kitchen123, super@servingsync.com/super123
+
+---
+Task ID: user-mgmt-bill-style
+Agent: main
+Task: Super Admin manages all users + set passwords; Bill & KOT style editor in dashboard
+
+Work Log:
+- Extended ShopSetting Prisma model with 13 bill style fields (billShowLogo, billShowGstin, billShowPhone, billShowAddress, billShowEmail, billShowDateTime, billShowWaiter, billShowCustomer, billShowKotNo, billFontSize, billHeaderAlign, billExtraNote, billAccentColor) and 8 KOT style fields (kotShowLogo, kotShowWaiter, kotShowDateTime, kotShowTable, kotShowGuests, kotFontSize, kotHeaderAlign, kotAccentColor, kotExtraNote)
+- Pushed schema to DB
+- Updated /api/settings GET/PUT to handle all new style fields
+- Updated /api/users:
+  - GET: super admin (no X-Shop-Id) sees ALL users with shop info; shop-scoped admins see own shop users + super admins
+  - POST: super admin can assign user to any shop via shopId in body; shop admin forced to own shop
+  - PUT: includes permission check (shop admin can't edit users outside their shop); supports password reset
+  - DELETE: includes permission check
+- Rebuilt UsersPage with enhanced features:
+  - Shows shop badge on each user card (e.g. "Spice Garden SPICE")
+  - Super Admin info banner: "You can manage users across all shops"
+  - 3 action buttons per user: Edit, Reset Password (key icon), Delete
+  - User count summary: "X users · Y admins · Z staff · W kitchen · Super Admin view"
+  - UserForm supports shop assignment (super admin only) via dropdown
+  - ResetPasswordDialog with show/hide password toggle
+  - Role-based card colors (admin=sky, kitchen=emerald, staff=slate)
+- Rebuilt SettingsPage with 3 tabs:
+  - Shop tab: restaurant details (name, phone, email, GSTIN, address, tax rate, currency, prefixes, footer note)
+  - Bill Style tab: show/hide toggles (Logo, GSTIN, Phone, Address, Email, Date/Time, Waiter, Customer, KOT No), font size slider (9-14px), header alignment (left/center/right), accent color picker (6 presets + custom), extra note field, LIVE PREVIEW
+  - KOT Style tab: show/hide toggles (Logo, Waiter, Date/Time, Table, Guests), font size slider (10-16px), header alignment, accent color picker, extra note, LIVE PREVIEW
+- Created StylePreviews component with BillReceiptPreview (renders sample bill with current settings) + KotReceiptPreview (renders sample KOT)
+- Updated Receipts.tsx:
+  - KOTReceipt accepts optional `style` prop — applies accent color, font size, alignment, show/hide elements
+  - BillReceipt accepts optional `style` prop — applies all bill style customization
+  - Added ReceiptStyle interface for type safety
+- Updated CounterMode:
+  - Loads settings via /api/settings on mount
+  - Passes settings to KOTReceipt (KOT print preview)
+  - Passes settings to BillingDialog (which passes to BillReceipt)
+  - BillingDialog uses settings.taxRate and settings.serviceRate as defaults
+- Updated HistoryMode:
+  - Loads settings on mount
+  - Passes settings to BillReceipt for reprint preview
+- Lint passes cleanly
+
+Verification (Agent Browser end-to-end):
+- ✓ Login as Super Admin → ShopPicker shows both shops
+- ✓ Select Spice Garden → home screen with 5 mode cards
+- ✓ Management → Users page shows "4 users · 2 admins · 1 staff · 1 kitchen · Super Admin view (all shops)"
+- ✓ Super Admin info banner visible: "You can manage users across all shops"
+- ✓ Each user card shows shop badge (Spice Garden SPICE) and 3 action buttons (Edit, Reset password, Delete)
+- ✓ Management → Settings page loads with 3 tabs: Shop / Bill Style / KOT Style
+- ✓ Bill Style tab shows: Show/Hide Elements toggles (Logo, GSTIN, Phone, Address, Email, Date/Time, Waiter, Customer, KOT Number), Font Size slider, Header Alignment, Accent Color picker, Live Preview
+- ✓ Live Preview renders sample bill with Spice Garden header, GSTIN, sample items, TOTAL
+- ✓ Settings API accepts updates: tested billFontSize=13, billAccentColor=#10b981, billShowEmail=true, kotFontSize=14 — all saved correctly
+- ✓ Lint passes cleanly
+
+Stage Summary:
+- Super Admin can manage ALL users across all shops (view, create, edit, delete, reset password)
+- Shop admins can manage users in their own shop only (permission enforced)
+- Bill Style editor: 9 show/hide toggles + font size + alignment + accent color + extra note + live preview
+- KOT Style editor: 5 show/hide toggles + font size + alignment + accent color + extra note + live preview
+- All style settings persist per-shop and apply to actual printed receipts

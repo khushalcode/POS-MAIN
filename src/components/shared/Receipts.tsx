@@ -3,46 +3,95 @@
 import { formatDateTime, formatTime, formatCurrency } from '@/lib/format'
 import type { Order } from '@/lib/types'
 
-export function KOTReceipt({ order, kotNo }: { order: Order; kotNo: number }) {
+export interface ReceiptStyle {
+  shopName?: string
+  address?: string | null
+  phone?: string | null
+  email?: string | null
+  gstin?: string | null
+  taxRate?: number
+  currency?: string
+  invoicePrefix?: string
+  kotPrefix?: string
+  footerNote?: string
+  // Bill style
+  billShowLogo?: boolean
+  billShowGstin?: boolean
+  billShowPhone?: boolean
+  billShowAddress?: boolean
+  billShowEmail?: boolean
+  billShowDateTime?: boolean
+  billShowWaiter?: boolean
+  billShowCustomer?: boolean
+  billShowKotNo?: boolean
+  billFontSize?: number
+  billHeaderAlign?: string
+  billExtraNote?: string | null
+  billAccentColor?: string
+  // KOT style
+  kotShowLogo?: boolean
+  kotShowWaiter?: boolean
+  kotShowDateTime?: boolean
+  kotShowTable?: boolean
+  kotShowGuests?: boolean
+  kotFontSize?: number
+  kotHeaderAlign?: string
+  kotAccentColor?: string
+  kotExtraNote?: string | null
+}
+
+export function KOTReceipt({ order, kotNo, style }: { order: Order; kotNo: number; style?: ReceiptStyle }) {
   const items = (order.items || []).filter((i) => i.status !== 'cancelled')
+  const accent = style?.kotAccentColor || '#000'
+  const fontSize = style?.kotFontSize || 12
+  const align = style?.kotHeaderAlign || 'center'
+
   return (
-    <div className="p-3 font-mono text-black">
-      <div className="center">
-        <div className="bold lg">** KOT **</div>
-        <div className="bold md">ServingSync Restaurant</div>
-        <div className="xs">Kitchen Order Ticket</div>
-      </div>
-      <div className="double" />
+    <div className="p-3 font-mono text-black" style={{ fontSize: `${fontSize}px` }}>
+      {style?.kotShowLogo !== false && (
+        <div style={{ textAlign: align as any }}>
+          <div className="bold lg" style={{ color: accent }}>** {style?.kotPrefix || 'KOT'} **</div>
+          <div className="bold md">{style?.shopName || 'ServingSync Restaurant'}</div>
+          <div className="xs">Kitchen Order Ticket</div>
+        </div>
+      )}
+      <div className="double" style={{ borderTopColor: accent }} />
       <div className="row sm">
-        <span>KOT No:</span>
+        <span>{style?.kotPrefix || 'KOT'} No:</span>
         <span className="bold">#{kotNo}</span>
       </div>
-      <div className="row sm">
-        <span>Table:</span>
-        <span className="bold">{order.table?.name || '-'}</span>
-      </div>
-      <div className="row sm">
-        <span>Guests:</span>
-        <span>{order.guests}</span>
-      </div>
+      {style?.kotShowTable !== false && (
+        <div className="row sm">
+          <span>Table:</span>
+          <span className="bold">{order.table?.name || '-'}</span>
+        </div>
+      )}
+      {style?.kotShowGuests !== false && (
+        <div className="row sm">
+          <span>Guests:</span>
+          <span>{order.guests}</span>
+        </div>
+      )}
       <div className="row sm">
         <span>Type:</span>
         <span className="bold uppercase">{order.type}</span>
       </div>
-      {order.waiterName && (
+      {style?.kotShowWaiter !== false && order.waiterName && (
         <div className="row sm">
           <span>Waiter:</span>
           <span>{order.waiterName}</span>
         </div>
       )}
-      <div className="row sm">
-        <span>Time:</span>
-        <span>{formatTime(order.createdAt)}</span>
-      </div>
+      {style?.kotShowDateTime !== false && (
+        <div className="row sm">
+          <span>Time:</span>
+          <span>{formatTime(order.createdAt)}</span>
+        </div>
+      )}
       <div className="divider" />
       <table>
         <thead>
-          <tr>
+          <tr style={{ borderBottom: `1px solid ${accent}` }}>
             <th>Item</th>
             <th className="right">Qty</th>
             <th className="right">Status</th>
@@ -69,6 +118,11 @@ export function KOTReceipt({ order, kotNo }: { order: Order; kotNo: number }) {
           {order.notes}
         </div>
       )}
+      {style?.kotExtraNote && (
+        <div className="sm italic" style={{ color: accent }}>
+          {style.kotExtraNote}
+        </div>
+      )}
       <div className="divider" />
       <div className="center xs">
         Generated {formatDateTime(new Date())}
@@ -81,29 +135,46 @@ export function KOTReceipt({ order, kotNo }: { order: Order; kotNo: number }) {
 
 export function BillReceipt({
   bill,
-  restaurantName = 'ServingSync Restaurant',
-  restaurantAddr = '123 Main Street · City · 00000',
-  restaurantPhone = '+91 98765 43210',
-  gstin = '29ABCDE1234F1Z5',
-  footerNote = 'Thank you for dining with us!',
+  restaurantName,
+  restaurantAddr,
+  restaurantPhone,
+  footerNote,
+  style,
 }: {
   bill: any
   restaurantName?: string
   restaurantAddr?: string
   restaurantPhone?: string
-  gstin?: string
   footerNote?: string
+  style?: ReceiptStyle
 }) {
   const items = bill.order?.items || []
+  const accent = style?.billAccentColor || '#000'
+  const fontSize = style?.billFontSize || 11
+  const align = style?.billHeaderAlign || 'center'
+
+  const name = style?.shopName || restaurantName || 'ServingSync Restaurant'
+  const addr = style?.address || restaurantAddr
+  const phone = style?.phone || restaurantPhone
+  const email = style?.email
+  const gstin = style?.gstin
+  const footer = style?.footerNote || footerNote || 'Thank you for dining with us!'
+
   return (
-    <div className="p-3 font-mono text-black">
-      <div className="center">
-        <div className="bold lg">{restaurantName}</div>
-        <div className="xs">{restaurantAddr}</div>
-        <div className="xs">Phone: {restaurantPhone}</div>
-        <div className="xs">GSTIN: {gstin}</div>
-      </div>
-      <div className="double" />
+    <div className="p-3 font-mono text-black" style={{ fontSize: `${fontSize}px` }}>
+      {style?.billShowLogo !== false && (
+        <div style={{ textAlign: align as any }}>
+          <div className="bold lg" style={{ color: accent }}>{name}</div>
+          <div className="xs">{addr}</div>
+          <div className="xs">Phone: {phone}</div>
+          {style?.billShowEmail && email && <div className="xs">{email}</div>}
+          {style?.billShowGstin && gstin && <div className="xs">GSTIN: {gstin}</div>}
+        </div>
+      )}
+      {style?.billShowAddress && addr && !style?.billShowLogo && (
+        <div className="center xs">{addr}</div>
+      )}
+      <div className="double" style={{ borderTopColor: accent }} />
       <div className="center bold md">TAX INVOICE</div>
       <div className="divider" />
       <div className="row sm">
@@ -114,18 +185,38 @@ export function BillReceipt({
         <span>Table:</span>
         <span>{bill.tableNumber}</span>
       </div>
-      <div className="row sm">
-        <span>Date:</span>
-        <span>{formatDateTime(bill.paidAt)}</span>
-      </div>
+      {style?.billShowDateTime !== false && (
+        <div className="row sm">
+          <span>Date:</span>
+          <span>{formatDateTime(bill.paidAt)}</span>
+        </div>
+      )}
       <div className="row sm">
         <span>Payment:</span>
         <span className="bold uppercase">{bill.paymentMode}</span>
       </div>
+      {style?.billShowWaiter && bill.order?.waiterName && (
+        <div className="row sm">
+          <span>Waiter:</span>
+          <span>{bill.order.waiterName}</span>
+        </div>
+      )}
+      {style?.billShowCustomer && bill.order?.customerName && (
+        <div className="row sm">
+          <span>Customer:</span>
+          <span>{bill.order.customerName}</span>
+        </div>
+      )}
+      {style?.billShowKotNo && (
+        <div className="row sm">
+          <span>KOT No:</span>
+          <span>#{bill.order?.kotPrinted ? '1' : '-'}</span>
+        </div>
+      )}
       <div className="divider" />
       <table>
         <thead>
-          <tr>
+          <tr style={{ borderBottom: `1px solid ${accent}` }}>
             <th>Item</th>
             <th className="right">Qty</th>
             <th className="right">Rate</th>
@@ -171,14 +262,19 @@ export function BillReceipt({
           <span>- {formatCurrency(bill.discount)}</span>
         </div>
       )}
-      <div className="double" />
+      <div className="double" style={{ borderTopColor: accent }} />
       <div className="row lg bold">
         <span>TOTAL</span>
-        <span>{formatCurrency(bill.total)}</span>
+        <span style={{ color: accent }}>{formatCurrency(bill.total)}</span>
       </div>
-      <div className="double" />
+      {style?.billExtraNote && (
+        <div className="divider" />
+      )}
+      {style?.billExtraNote && (
+        <div className="sm italic">{style.billExtraNote}</div>
+      )}
       <div className="center xs">
-        <div>{footerNote}</div>
+        <div>{footer}</div>
         <div className="mt-1">Powered by ServingSync POS</div>
       </div>
     </div>

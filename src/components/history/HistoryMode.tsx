@@ -50,6 +50,7 @@ export default function HistoryMode({ onExit }: HistoryModeProps) {
   const [tableFilter, setTableFilter] = useState<string>('all')
   const [summary, setSummary] = useState({ totalRevenue: 0, totalBills: 0, byPayment: {} as Record<string, number> })
   const [previewBill, setPreviewBill] = useState<Bill | null>(null)
+  const [settings, setSettings] = useState<any>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -73,6 +74,11 @@ export default function HistoryMode({ onExit }: HistoryModeProps) {
     const t = setTimeout(() => load(), 300)
     return () => clearTimeout(t)
   }, [load, currentShop?.id])
+
+  // Load settings once
+  useEffect(() => {
+    shopFetch('/api/settings').then((r) => r.json()).then((d) => setSettings(d.settings)).catch(() => {})
+  }, [shopFetch, currentShop?.id])
 
   const todayRevenue = summary.totalRevenue
 
@@ -256,7 +262,7 @@ export default function HistoryMode({ onExit }: HistoryModeProps) {
           { label: 'Restaurant Copy', banner: '*** RESTAURANT COPY ***' },
         ]}
       >
-        {previewBill && <BillReceipt bill={previewBill} />}
+        {previewBill && <BillReceipt bill={previewBill} style={settings} />}
       </PrintPreview>
     </div>
   )

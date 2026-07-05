@@ -38,10 +38,11 @@ export function BillingDialog({
   open,
   order,
   billNo,
+  settings,
   onClose,
   onConfirm,
   onAfterBill,
-}: BillingDialogProps) {
+}: BillingDialogProps & { settings?: any }) {
   const [taxRate, setTaxRate] = useState(5)
   const [discount, setDiscount] = useState(0)
   const [serviceCharge, setServiceCharge] = useState(0)
@@ -52,9 +53,9 @@ export function BillingDialog({
 
   useEffect(() => {
     if (open) {
-      setTaxRate(5)
+      setTaxRate(settings?.taxRate ?? 5)
+      setServiceCharge(settings?.serviceRate ?? 0)
       setDiscount(0)
-      setServiceCharge(0)
       setPaymentMode('cash')
       setGeneratedBill(null)
       setShowPrint(false)
@@ -234,7 +235,7 @@ export function BillingDialog({
           { label: 'Restaurant Copy', banner: '*** RESTAURANT COPY ***' },
         ]}
       >
-        {generatedBill && <BillReceipt bill={generatedBill} />}
+        {generatedBill && <BillReceipt bill={generatedBill} style={settings} />}
       </PrintPreview>
     </AnimatePresence>
   )
