@@ -3,21 +3,25 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import {
-  UtensilsCrossed, ChefHat, Receipt, Wifi, WifiOff, ArrowRight,
-  Store, LayoutDashboard, Zap, Store as StoreIcon,
+  UtensilsCrossed, Wifi, WifiOff, ArrowRight,
+  Store, LayoutDashboard, Zap, Store as StoreIcon, ChevronDown, CheckCircle2,
+  Receipt, ChefHat,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { useSession } from '@/lib/session'
 import { LoginScreen } from '@/components/auth/LoginScreen'
-import { ShopPicker } from '@/components/auth/ShopPicker'
 import CounterMode from '@/components/counter/CounterMode'
 import KitchenMode from '@/components/kitchen/KitchenMode'
 import HistoryMode from '@/components/history/HistoryMode'
 import ManagementMode from '@/components/management/ManagementMode'
 
 type Mode = 'home' | 'counter' | 'kitchen' | 'history' | 'management' | 'direct'
+
+// RBAC: which modes each role can access
+const STAFF_MODES: Mode[] = ['counter', 'direct', 'kitchen', 'history']
+const ADMIN_MODES: Mode[] = ['counter', 'direct', 'kitchen', 'history', 'management']
 
 export default function Home() {
   const { user, currentShop, loading } = useSession()
@@ -31,7 +35,7 @@ export default function Home() {
     if (saved && saved !== 'home') setMode(saved)
   }, [loading, user])
 
-  // When user logs out (user becomes null), reset to home
+  // When user logs out, reset to home
   useEffect(() => {
     if (!loading && !user) {
       setMode('home')
@@ -63,24 +67,29 @@ export default function Home() {
     return <LoginScreen onLoggedOut={() => setMode('home')} />
   }
 
-  // Logged in but no shop selected (multi-shop user) → show shop picker
-  if (!currentShop) {
-    return <ShopPicker onPick={() => setMode('home')} />
-  }
+  // Logged in but no shop selected → show inline shop picker on home
+  // (This handles super admin who hasn't picked a shop yet)
+  // For single-shop users, shop is auto-selected in session.tsx
 
-  // Render selected mode
-  if (mode === 'counter') return <CounterMode onExit={backHome} />
-  if (mode === 'kitchen') return <KitchenMode onExit={backHome} />
-  if (mode === 'history') return <HistoryMode onExit={backHome} />
-  if (mode === 'management') return <ManagementMode onExit={backHome} />
-  if (mode === 'direct') return <CounterMode onExit={backHome} directMode />
+  // RBAC: check if user can access the current mode
+  const allowedModes = user.role === 'admin' ? ADMIN_MODES : STAFF_MODES
+
+  // Render selected mode (if allowed)
+  if (mode !== 'home' && allowedModes.includes(mode)) {
+    if (mode === 'counter') return <CounterMode onExit={backHome} />
+    if (mode === 'kitchen') return <KitchenMode onExit={backHome} />
+    if (mode === 'history') return <HistoryMode onExit={backHome} />
+    if (mode === 'management') return <ManagementMode onExit={backHome} />
+    if (mode === 'direct') return <CounterMode onExit={backHome} directMode />
+  }
 
   return <HomeScreen onSelect={enterMode} />
 }
 
 function HomeScreen({ onSelect }: { onSelect: (m: Mode) => void }) {
-  const { user, currentShop, shops, logout, theme } = useSession()
+  const { user, currentShop, shops, selectShop, logout } = useSession()
   const [online, setOnline] = useState(true)
+  const [shopPickerOpen, setShopPickerOpen] = useState(false)
 
   useEffect(() => {
     const update = () => setOnline(navigator.onLine)
@@ -93,13 +102,23 @@ function HomeScreen({ onSelect }: { onSelect: (m: Mode) => void }) {
     }
   }, [])
 
-  const modes = [
+  const isAdmin = user?.role === 'admin'
+  const allowedModes = isAdmin ? ADMIN_MODES : STAFF_MODES
+
+  // If no shop selected, force shop picker
+  if (!currentShop) {
+    return <ShopSelectorInline shops={shops} onPick={(s) => selectShop(s)} onLogout={logout} />
+  }
+
+  // Define all modes with RBAC filtering
+  const allModes = [
     {
       key: 'counter' as Mode,
       title: 'Counter Mode',
       subtitle: 'Take orders, manage tables, print KOT & bills',
       icon: Store,
       tags: ['Table grid', 'Direct Order', '2-copy print', 'Billing'],
+      roles: ['admin', 'staff'] as const,
     },
     {
       key: 'direct' as Mode,
@@ -108,6 +127,7 @@ function HomeScreen({ onSelect }: { onSelect: (m: Mode) => void }) {
       icon: Zap,
       tags: ['Fast checkout', 'Takeaway', 'Walk-in'],
       featured: true,
+      roles: ['admin', 'staff'] as const,
     },
     {
       key: 'kitchen' as Mode,
@@ -115,6 +135,7 @@ function HomeScreen({ onSelect }: { onSelect: (m: Mode) => void }) {
       subtitle: 'Live KOT display — chefs update item status',
       icon: ChefHat,
       tags: ['Real-time KOT', 'Item status', 'Ready alerts'],
+      roles: ['admin', 'staff'] as const,
     },
     {
       key: 'history' as Mode,
@@ -122,6 +143,7 @@ function HomeScreen({ onSelect }: { onSelect: (m: Mode) => void }) {
       subtitle: 'Search past bills, view daily revenue',
       icon: Receipt,
       tags: ['Bill search', 'Revenue', 'Day summary'],
+      roles: ['admin', 'staff'] as const,
     },
     {
       key: 'management' as Mode,
@@ -130,12 +152,15 @@ function HomeScreen({ onSelect }: { onSelect: (m: Mode) => void }) {
       icon: LayoutDashboard,
       tags: ['Dashboard', 'Inventory', 'Finance', 'Reports', 'Zomato', 'Backup'],
       span: 'md:col-span-3',
+      roles: ['admin'] as const,
     },
   ]
 
+  const visibleModes = allModes.filter((m) => m.roles.includes(user?.role as any))
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-orange-50/30 to-rose-50/30">
-      {/* Header */}
+      {/* Header with inline shop picker */}
       <header className="border-b border-slate-200/70 bg-white/70 backdrop-blur-xl sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -145,20 +170,42 @@ function HomeScreen({ onSelect }: { onSelect: (m: Mode) => void }) {
             <div>
               <h1 className="text-base font-bold tracking-tight text-slate-900">ServingSync POS</h1>
               <p className="text-[10px] text-slate-500">
-                {currentShop?.name} · {user?.name} ({user?.role})
+                {user?.name} ({isAdmin ? 'Admin' : 'Staff'})
               </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {/* Shop badge — tap to switch */}
+            {/* Inline shop picker */}
             {shops.length > 1 && (
-              <button
-                onClick={() => onSelect('home')}
-                className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-brand-soft text-brand-text border border-brand/20 text-xs font-semibold"
-              >
-                <StoreIcon className="w-3.5 h-3.5" />
-                {currentShop?.name}
-              </button>
+              <div className="relative">
+                <button
+                  onClick={() => setShopPickerOpen(!shopPickerOpen)}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-brand-soft text-brand-text border border-brand/20 text-xs font-semibold"
+                >
+                  <StoreIcon className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline truncate max-w-[140px]">{currentShop?.name}</span>
+                  <span className="sm:hidden">{currentShop?.code}</span>
+                  <ChevronDown className="w-3 h-3" />
+                </button>
+                {shopPickerOpen && (
+                  <div className="absolute right-0 mt-1 w-56 bg-white rounded-xl shadow-2xl border border-slate-200 py-1 z-50">
+                    <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider px-3 py-1.5">Switch shop</p>
+                    {shops.map((s) => (
+                      <button
+                        key={s.id}
+                        onClick={() => { selectShop(s); setShopPickerOpen(false) }}
+                        className={`w-full flex items-center justify-between px-3 py-2 text-xs hover:bg-slate-50 ${currentShop?.id === s.id ? 'bg-slate-50' : ''}`}
+                      >
+                        <div className="flex flex-col items-start">
+                          <span className="font-semibold text-slate-900">{s.name}</span>
+                          <span className="text-[10px] text-slate-500">{s.code}</span>
+                        </div>
+                        {currentShop?.id === s.id && <CheckCircle2 className="w-4 h-4 text-brand" />}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             )}
             <div className={`flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-full ${
               online ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'
@@ -181,21 +228,22 @@ function HomeScreen({ onSelect }: { onSelect: (m: Mode) => void }) {
           transition={{ duration: 0.5 }}
         >
           <Badge variant="secondary" className="mb-3 bg-brand-soft text-brand-text border-brand/20 hover:bg-brand-soft">
-            {currentShop?.code} · Multi-shop ready
+            {currentShop?.code} · {currentShop?.name}
           </Badge>
           <h2 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-slate-900 mb-3">
             Welcome, {user?.name.split(' ')[0]}.
           </h2>
           <p className="text-sm sm:text-base text-slate-600 max-w-2xl mx-auto">
-            Pick a mode for this device. Counter takes orders & prints bills. Kitchen shows live KOTs.
-            Direct Order is the fastest path for takeaways. Management has everything else.
+            {isAdmin
+              ? 'Full access: Counter, Kitchen, Direct Order, History & Management.'
+              : 'Counter, Direct Order, Kitchen & History access. Ask admin for management features.'}
           </p>
         </motion.div>
       </section>
 
-      {/* Mode cards */}
+      {/* Mode cards — RBAC filtered */}
       <section className="max-w-6xl mx-auto px-4 sm:px-6 pb-16 grid gap-4 sm:gap-6 md:grid-cols-3">
-        {modes.map((m, i) => (
+        {visibleModes.map((m, i) => (
           <motion.div
             key={m.key}
             initial={{ opacity: 0, y: 24 }}
@@ -205,7 +253,7 @@ function HomeScreen({ onSelect }: { onSelect: (m: Mode) => void }) {
           >
             <Card
               onClick={() => onSelect(m.key)}
-              className={`group cursor-pointer relative overflow-hidden border-0 shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 ${
+              className={`group cursor-pointer relative overflow-hidden border-0 shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 pointer-events-auto ${
                 m.featured ? 'ring-2 ring-brand ring-offset-2' : ''
               } ${m.span ? 'min-h-[180px]' : ''}`}
             >
@@ -246,29 +294,76 @@ function HomeScreen({ onSelect }: { onSelect: (m: Mode) => void }) {
           </motion.div>
         ))}
       </section>
+    </div>
+  )
+}
 
-      {/* How it works */}
-      <section className="max-w-6xl mx-auto px-4 sm:px-6 pb-16">
-        <Card className="p-5 sm:p-6 md:p-8 bg-white/70 backdrop-blur border-slate-200">
-          <h3 className="text-base sm:text-lg font-bold text-slate-900 mb-4">Multi-shop workflow</h3>
-          <div className="grid md:grid-cols-4 gap-4 sm:gap-5">
-            {[
-              { step: '1', title: 'Sign in', desc: `Login as Admin / Staff / Kitchen. Try admin@spice.com / admin123` },
-              { step: '2', title: 'Pick your shop', desc: 'Choose which restaurant you\'re operating from. Super Admin sees all shops.' },
-              { step: '3', title: 'Work the mode', desc: 'Counter, Kitchen, Direct Order — each scoped to your selected shop.' },
-              { step: '4', title: 'Switch anytime', desc: 'Use the shop switcher in the top bar to flip between shops in real time.' },
-            ].map((s) => (
-              <div key={s.step}>
-                <div className="w-7 h-7 rounded-lg bg-brand-soft text-brand-text font-bold text-xs flex items-center justify-center mb-2">
-                  {s.step}
-                </div>
-                <h4 className="font-semibold text-slate-900 text-sm mb-1">{s.title}</h4>
-                <p className="text-xs text-slate-600 leading-relaxed">{s.desc}</p>
-              </div>
-            ))}
-          </div>
-        </Card>
-      </section>
+// Inline shop selector (shown when super admin hasn't picked a shop)
+function ShopSelectorInline({ shops, onPick, onLogout }: { shops: any[]; onPick: (s: any) => void; onLogout: () => void }) {
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-orange-50/30 to-rose-50/30 flex items-center justify-center p-4">
+      <motion.div
+        initial={{ opacity: 0, y: 24 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+        className="w-full max-w-3xl"
+      >
+        <div className="text-center mb-6">
+          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">Select your shop</h1>
+          <p className="text-sm text-slate-500 mt-1">All orders, bills and KOTs will be filtered for the selected shop</p>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {shops.map((shop, i) => {
+            const colors: Record<string, string> = {
+              orange: 'from-orange-500 to-rose-500',
+              emerald: 'from-emerald-500 to-teal-500',
+              violet: 'from-violet-500 to-fuchsia-500',
+            }
+            const glow: Record<string, string> = {
+              orange: 'shadow-orange-500/30',
+              emerald: 'shadow-emerald-500/30',
+              violet: 'shadow-violet-500/30',
+            }
+            const c = colors[shop.color] || colors.orange
+            return (
+              <motion.div
+                key={shop.id}
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 + i * 0.08 }}
+              >
+                <Card
+                  onClick={() => onPick(shop)}
+                  className={`cursor-pointer relative overflow-hidden border-0 shadow-xl ${glow[shop.color] || glow.orange} hover:shadow-2xl transition-all hover:-translate-y-1 pointer-events-auto`}
+                >
+                  <div className={`absolute inset-0 bg-gradient-to-br ${c} opacity-95 pointer-events-none`} />
+                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.25),transparent_55%)] pointer-events-none" />
+                  <div className="relative p-6 text-white">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="w-12 h-12 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center ring-1 ring-white/30">
+                        <Store className="w-6 h-6" />
+                      </div>
+                      <Badge variant="outline" className="bg-white/20 border-white/30 text-white text-[10px] uppercase tracking-wider">
+                        {shop.code}
+                      </Badge>
+                    </div>
+                    <h3 className="text-xl font-bold mb-1">{shop.name}</h3>
+                    {shop.address && <p className="text-xs text-white/80 mb-3 line-clamp-2">{shop.address}</p>}
+                    <div className="flex items-center gap-1.5 text-sm font-semibold">
+                      Open <ArrowRight className="w-4 h-4" />
+                    </div>
+                  </div>
+                </Card>
+              </motion.div>
+            )
+          })}
+        </div>
+        <div className="text-center mt-6">
+          <Button variant="ghost" size="sm" onClick={onLogout} className="text-slate-500">
+            Sign out
+          </Button>
+        </div>
+      </motion.div>
     </div>
   )
 }

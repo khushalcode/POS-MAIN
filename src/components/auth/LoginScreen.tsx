@@ -4,13 +4,12 @@ import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   UtensilsCrossed, Mail, Lock, ArrowRight, Loader2, Eye, EyeOff,
-  Shield, ChefHat, Store, AlertCircle, Sparkles,
+  Shield, Store, AlertCircle, Sparkles, User,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
 import { useSession, type SessionUser, type Shop } from '@/lib/session'
 
@@ -153,57 +152,54 @@ export function LoginScreen({ onLoggedOut }: LoginScreenProps) {
             </Button>
           </form>
 
-          {/* Quick demo logins */}
+          {/* Quick demo logins — 2 roles only */}
           <div className="mt-5 pt-5 border-t border-slate-200">
             <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1">
               <Sparkles className="w-3 h-3" /> Demo logins (tap to fill)
             </p>
-            <div className="grid grid-cols-3 gap-1.5">
+            <div className="grid grid-cols-2 gap-1.5">
               <QuickLogin
                 icon={Shield}
-                label="Admin"
-                color="from-sky-500 to-blue-600"
-                onClick={() => quickFill('admin@spice.com', 'admin123')}
+                label="Super Admin"
+                sublabel="All shops"
+                color="from-slate-700 to-slate-900"
+                onClick={() => quickFill('super@servingsync.com', 'super123')}
               />
               <QuickLogin
-                icon={Store}
+                icon={User}
                 label="Staff"
+                sublabel="Counter + History"
                 color="from-orange-500 to-rose-500"
-                onClick={() => quickFill('staff@spice.com', 'staff123')}
-              />
-              <QuickLogin
-                icon={ChefHat}
-                label="Kitchen"
-                color="from-emerald-500 to-teal-600"
-                onClick={() => quickFill('kitchen@spice.com', 'kitchen123')}
+                onClick={() => quickFill('riya@spice.com', 'staff123')}
               />
             </div>
             <button
-              onClick={() => quickFill('super@servingsync.com', 'super123')}
+              onClick={() => quickFill('admin@spice.com', 'admin123')}
               className="w-full mt-1.5 text-[10px] text-slate-500 hover:text-slate-800 underline"
             >
-              Or use Super Admin (all shops)
+              Or use Shop Admin (admin@spice.com)
             </button>
           </div>
         </Card>
 
         <p className="text-center text-[10px] text-slate-400 mt-4">
-          3 login roles · Admin / Staff / Kitchen · Multi-shop support
+          2 login roles · Super Admin & Staff · Multi-shop support
         </p>
       </motion.div>
     </div>
   )
 }
 
-function QuickLogin({ icon: Icon, label, color, onClick }: { icon: any; label: string; color: string; onClick: () => void }) {
+function QuickLogin({ icon: Icon, label, sublabel, color, onClick }: { icon: any; label: string; sublabel: string; color: string; onClick: () => void }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`flex flex-col items-center gap-1 py-2 rounded-lg bg-gradient-to-br ${color} text-white text-[10px] font-semibold shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all`}
+      className={`flex flex-col items-center gap-0.5 py-2.5 rounded-lg bg-gradient-to-br ${color} text-white text-[11px] font-semibold shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all`}
     >
       <Icon className="w-4 h-4" />
       {label}
+      <span className="text-[9px] font-normal opacity-80">{sublabel}</span>
     </button>
   )
 }

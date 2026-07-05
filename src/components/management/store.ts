@@ -15,6 +15,7 @@ export type ManagementPage =
   | 'reports'
   | 'settings'
   | 'users'
+  | 'audit'
   | 'backup'
 
 interface NavState {

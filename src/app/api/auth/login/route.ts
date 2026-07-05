@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { logAudit } from '@/lib/audit'
 
 // POST /api/auth/login — validate credentials, return user + accessible shops
 export async function POST(req: NextRequest) {
@@ -28,6 +29,17 @@ export async function POST(req: NextRequest) {
     // Super admin — access all shops
     shops = await db.shop.findMany({ where: { active: true }, orderBy: { name: 'asc' } })
   }
+
+  // Audit log
+  await logAudit({
+    shopId: user.shopId,
+    userId: user.id,
+    userName: user.name,
+    userRole: user.role,
+    action: 'login',
+    details: { email: user.email },
+    ipAddress: req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip'),
+  })
 
   return NextResponse.json({
     user: {

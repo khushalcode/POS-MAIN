@@ -288,3 +288,71 @@ Stage Summary:
 - Bill Style editor: 9 show/hide toggles + font size + alignment + accent color + extra note + live preview
 - KOT Style editor: 5 show/hide toggles + font size + alignment + accent color + extra note + live preview
 - All style settings persist per-shop and apply to actual printed receipts
+
+---
+Task ID: simplify-rbac-audit-electron
+Agent: main
+Task: Simplify to 2 roles, RBAC, per-shop bill colors, audit log, Electron .exe setup
+
+Work Log:
+- Added AuditLog Prisma model (id, shopId, userId, userName, userRole, action, details, ipAddress, createdAt)
+- Force-reset DB and re-seeded with simplified 2-role system:
+  - Spice Garden (orange bill #f97316): admin@spice.com + 2 staff (riya@spice.com, karan@spice.com)
+  - Belly Bytes (emerald bill #10b981): admin@belly.com + 2 staff (vikram@belly.com, ananya@belly.com)
+  - Super Admin (super@servingsync.com) — access to all shops
+  - NO kitchen role — only admin + staff
+  - Per-shop billAccentColor set in ShopSetting during seed
+- Created /api/audit GET (list with filters) + DELETE (clear old logs)
+- Created src/lib/audit.ts — logAudit() helper (safe, never throws)
+- Added audit logging to /api/auth/login (logs all login attempts)
+- Simplified LoginScreen:
+  - Only 2 quick-login buttons: "Super Admin" + "Staff" (removed Kitchen button)
+  - Subtitle: "2 login roles · Super Admin & Staff · Multi-shop support"
+- Rewrote page.tsx with RBAC:
+  - STAFF_MODES = ['counter', 'direct', 'kitchen', 'history'] (NO management)
+  - ADMIN_MODES = ['counter', 'direct', 'kitchen', 'history', 'management']
+  - Mode cards filtered by user role — staff don't see Management card
+  - Inline shop picker on home screen header (dropdown, not separate modal)
+  - ShopSelectorInline component for super admin without shop selected
+  - Single-shop users skip shop picker entirely
+- Built AuditPage in Management:
+  - Table view with Time, User, Action, Details, IP columns
+  - Filter by action type (12 action types with icons + colors)
+  - Search by user/action/details
+  - "Clear Old" button (deletes logs older than 30 days)
+  - Action badges with icons: Login, Logout, Order Created, KOT Sent, Bill Generated, User Created/Edited/Deleted, Settings Updated, Zomato Pushed, Table Opened/Closed
+- Added Audit Log to Management sidebar (System section, between Users and Settings)
+- Set per-shop bill colors:
+  - Spice Garden: billAccentColor=#f97316 (orange), kotAccentColor=#f97316
+  - Belly Bytes: billAccentColor=#10b981 (emerald), kotAccentColor=#10b981
+- Electron desktop app setup:
+  - Created electron/main.js — full Electron main process with window, tray, Next.js server launcher, auto DB setup
+  - Updated package.json with electron-builder config:
+    - appId: com.servingsync.pos
+    - productName: ServingSync POS
+    - Windows NSIS installer (desktop shortcut, start menu, uninstaller)
+    - macOS DMG, Linux AppImage
+    - Bundles .next/standalone + prisma/db template
+  - Added scripts: electron:dev, electron:build, dist:win, dist:mac, dist:linux
+  - Added electron + electron-builder to devDependencies
+  - Created BUILD.md with complete build instructions for .exe/.dmg/.AppImage
+  - ESLint ignores electron/ directory (CommonJS require)
+
+Verification (Agent Browser end-to-end):
+- ✓ Login screen shows only 2 quick-login buttons: Super Admin + Staff
+- ✓ Staff login (riya@spice.com) → home screen with 4 mode cards (NO Management)
+- ✓ Super Admin login → shop selector with both shops
+- ✓ Select Spice Garden → home screen with 5 mode cards (includes Management)
+- ✓ Inline shop picker dropdown in header (not separate modal)
+- ✓ Single-shop users skip shop picker entirely
+- ✓ Audit Log page: shows 1 entry (Riya Sharma login at 09:39 am)
+- ✓ Audit log captures: Time, User (with avatar + role), Action (with icon badge), Details, IP
+- ✓ Filter dropdown with 12 action types
+- ✓ Lint passes cleanly
+
+Stage Summary:
+- 2 roles only: Admin (all modes) + Staff (4 modes, no Management)
+- Per-shop bill colors: Spice Garden orange, Belly Bytes emerald
+- Audit log tracks all user actions (login, orders, bills, settings, etc.)
+- Electron .exe setup complete — run `npm run dist:win` on Windows to build installer
+- All existing features intact: multi-shop, 3 themes, Direct Order, Zomato, 2-copy printing, item images, bill/KOT style editor

@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   ArrowLeft, Menu as MenuIcon, X, LayoutDashboard, UtensilsCrossed,
   Users, Truck, ShoppingCart, Wallet, TrendingUp, TrendingDown,
-  BarChart3, Settings, UserCog, Database, Bell, Bike,
+  BarChart3, Settings, UserCog, Database, Bell, Bike, Activity,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -38,6 +38,7 @@ function PageSkeleton() {
 const DashboardPage = dynamic(() => import('./pages/DashboardPage'), { loading: PageSkeleton })
 const ZomatoPage = dynamic(() => import('./pages/ZomatoPage'), { loading: PageSkeleton })
 const MenuPage = dynamic(() => import('./pages/MenuPage'), { loading: PageSkeleton })
+const AuditPage = dynamic(() => import('./pages/AuditPage'), { loading: PageSkeleton })
 const CustomersPage = dynamic(() => import('./pages/CustomersPage'), { loading: PageSkeleton })
 const SuppliersPage = dynamic(() => import('./pages/SuppliersPage'), { loading: PageSkeleton })
 const PurchasesPage = dynamic(() => import('./pages/PurchasesPage'), { loading: PageSkeleton })
@@ -91,6 +92,7 @@ const NAV_SECTIONS: NavSection[] = [
     title: 'System',
     items: [
       { id: 'users', label: 'Users', icon: UserCog, color: 'text-sky-600 bg-sky-50' },
+      { id: 'audit', label: 'Audit Log', icon: Activity, color: 'text-rose-600 bg-rose-50' },
       { id: 'settings', label: 'Settings', icon: Settings, color: 'text-slate-600 bg-slate-100' },
       { id: 'backup', label: 'Backup', icon: Database, color: 'text-fuchsia-600 bg-fuchsia-50' },
     ],
@@ -139,6 +141,7 @@ export default function ManagementMode({ onExit }: ManagementModeProps) {
       case 'reports': return <ReportsPage />
       case 'settings': return <SettingsPage />
       case 'users': return <UsersPage />
+      case 'audit': return <AuditPage />
       case 'backup': return <BackupPage />
       default: return <DashboardPage />
     }

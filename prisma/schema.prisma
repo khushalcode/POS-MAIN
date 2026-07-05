@@ -310,6 +310,23 @@ model ShopSetting {
   shop Shop @relation(fields: [shopId], references: [id], onDelete: Cascade)
 }
 
+// ---- Audit Log ----------------------------------------------------------
+model AuditLog {
+  id        String   @id @default(cuid())
+  shopId    String?
+  userId    String?
+  userName  String?
+  userRole  String?
+  action    String   // login | logout | order_create | kot_send | bill_generate | user_create | user_edit | user_delete | settings_update | zomato_push | table_open | table_close
+  details   String?  // JSON string with extra context
+  ipAddress String?
+  createdAt DateTime @default(now())
+
+  @@index([shopId, createdAt])
+  @@index([userId])
+  @@index([action])
+}
+
 // ---- Zomato Orders ------------------------------------------------------
 model ZomatoOrder {
   id             String   @id @default(cuid())
