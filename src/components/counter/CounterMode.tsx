@@ -598,6 +598,27 @@ export default function CounterMode({ onExit, directMode }: CounterModeProps) {
         </div>
       </main>
 
+      {/* Sticky bottom action bar — mobile only */}
+      {order && (
+        <div className="lg:hidden sticky bottom-0 left-0 right-0 z-20 bg-slate-900/95 backdrop-blur-xl border-t border-white/10 p-3 grid grid-cols-2 gap-2 shadow-2xl">
+          <Button
+            onClick={sendToKitchen}
+            disabled={!canSend || busy}
+            className="bg-gradient-to-r from-orange-500 to-rose-500 hover:from-orange-600 hover:to-rose-600 text-white h-12 text-sm font-bold shadow-lg"
+          >
+            <Send className="w-4 h-4 mr-1.5" />
+            {order.status === 'open' ? 'Send KOT' : 'Re-print'}
+          </Button>
+          <Button
+            onClick={openBilling}
+            disabled={!canBill}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white h-12 text-sm font-bold shadow-lg"
+          >
+            <Receipt className="w-4 h-4 mr-1.5" /> Bill
+          </Button>
+        </div>
+      )}
+
       {/* KOT print preview — 2 copies: Kitchen + Customer */}
       <PrintPreview
         open={showKOT}

@@ -56,7 +56,7 @@ export function LoginScreen({ onLoggedOut }: LoginScreenProps) {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-slate-50 via-orange-50/40 to-rose-50/30 relative overflow-hidden">
+    <div className="min-h-screen img-bg flex items-center justify-center p-4 relative overflow-hidden">
       {/* Background decoration */}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute -top-32 -right-32 w-96 h-96 rounded-full bg-orange-200/40 blur-3xl" />
@@ -79,14 +79,14 @@ export function LoginScreen({ onLoggedOut }: LoginScreenProps) {
           >
             <UtensilsCrossed className="w-8 h-8 text-white" />
           </motion.div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">ServingSync POS</h1>
-          <p className="text-sm text-slate-500 mt-1">Multi-shop restaurant management</p>
+          <h1 className="text-2xl font-extrabold tracking-tight text-white drop-shadow-lg">ServingSync POS</h1>
+          <p className="text-sm text-slate-300 mt-1">Multi-shop restaurant management</p>
         </div>
 
-        <Card className="p-6 shadow-2xl border-slate-200 bg-white/95 backdrop-blur">
+        <Card className="p-6 shadow-2xl border-white/10 bg-slate-900/80 backdrop-blur-xl">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1.5">
-              <Label htmlFor="email" className="text-xs font-semibold">Email</Label>
+              <Label htmlFor="email" className="text-xs font-semibold text-slate-300">Email</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <Input
@@ -95,7 +95,7 @@ export function LoginScreen({ onLoggedOut }: LoginScreenProps) {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@restaurant.com"
-                  className="pl-9 h-11"
+                  className="pl-9 h-11 bg-slate-800/60 border-slate-700 text-white placeholder-slate-500"
                   required
                   autoFocus
                 />
@@ -103,7 +103,7 @@ export function LoginScreen({ onLoggedOut }: LoginScreenProps) {
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="password" className="text-xs font-semibold">Password</Label>
+              <Label htmlFor="password" className="text-xs font-semibold text-slate-300">Password</Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <Input
@@ -112,7 +112,7 @@ export function LoginScreen({ onLoggedOut }: LoginScreenProps) {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="pl-9 pr-10 h-11"
+                  className="pl-9 pr-10 h-11 bg-slate-800/60 border-slate-700 text-white placeholder-slate-500"
                   required
                 />
                 <button
@@ -153,7 +153,7 @@ export function LoginScreen({ onLoggedOut }: LoginScreenProps) {
           </form>
 
           {/* Quick demo logins — 2 roles only */}
-          <div className="mt-5 pt-5 border-t border-slate-200">
+          <div className="mt-5 pt-5 border-t border-white/10">
             <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1">
               <Sparkles className="w-3 h-3" /> Demo logins (tap to fill)
             </p>
@@ -182,7 +182,7 @@ export function LoginScreen({ onLoggedOut }: LoginScreenProps) {
           </div>
         </Card>
 
-        <p className="text-center text-[10px] text-slate-400 mt-4">
+        <p className="text-center text-[10px] text-slate-500 mt-4">
           2 login roles · Super Admin & Staff · Multi-shop support
         </p>
       </motion.div>

@@ -521,3 +521,52 @@ Stage Summary:
 - Restaurant image backgrounds with warm dark overlay
 - Glassmorphism on header for professional look
 - All mode pages use image background
+
+---
+Task ID: img-bg-all-pages-mobile-actions
+Agent: main
+Task: Image bg on every page (incl login), redesign landing cards, sticky mobile action bar
+
+Work Log:
+- Added img-bg to LoginScreen — restaurant photo background with dark overlay
+- Updated login card to glassmorphism (bg-slate-900/80 backdrop-blur-xl)
+- Updated login inputs to dark style (bg-slate-800/60, white text)
+- Updated login labels to text-slate-300, footer to text-slate-500
+- Added img-bg to LicenseActivationScreen + LicenseExpiredScreen
+- Redesigned landing page cards — bigger, more visual, less boring:
+  - Card height increased from 150px to 220px (335px rendered)
+  - Larger icons (w-16/w-20 vs w-10/w-12 before)
+  - Added decorative dot pattern overlay
+  - Added glow accents (white/10 blur-2xl top-right, black/10 blur-2xl bottom-left)
+  - whileHover animations: card lifts -6px, icon scales 1.1 + rotates -5deg
+  - "Launch" pill button at bottom of each card (bg-white/25 backdrop-blur)
+  - Bigger title text (text-xl/2xl vs text-base/lg before)
+  - Tags as pill badges (rounded-full) instead of rectangular
+  - More padding (p-5/p-6 vs p-4/p-5 before)
+  - Extrabold font weight for titles
+- Added sticky bottom action bar in Counter Mode (mobile only, lg:hidden):
+  - Shows when an order is open
+  - 2 buttons: "Send KOT" (orange gradient) + "Bill" (emerald)
+  - Sticky to bottom of viewport, always accessible
+  - Dark glassmorphism background (bg-slate-900/95 backdrop-blur-xl)
+  - Large touch targets (h-12, text-sm font-bold)
+  - Shadow-2xl for depth
+  - Grid-cols-2 layout for equal-width buttons
+- Verified on mobile viewport (390x844):
+  - Sticky bar appears at bottom
+  - "Send KOT" and "Bill" buttons visible and enabled when items added
+  - Desktop buttons (Generate Bill, Send to Kitchen) also present in sidebar
+
+Verification (Agent Browser):
+- ✓ Login screen has img-bg class (restaurant photo background)
+- ✓ Login card uses glassmorphism (dark translucent)
+- ✓ Landing cards are 335px tall (vs 150px before) — much bigger
+- ✓ Cards have "Launch" button text, larger icons, dot patterns
+- ✓ Mobile viewport (390x844): sticky bottom bar with "Send KOT" + "Bill"
+- ✓ Buttons enable when items added to order
+- ✓ Lint passes cleanly
+
+Stage Summary:
+- Image background on ALL pages: Login, License, Landing, Counter, Kitchen, History, Zomato, Management
+- Landing cards redesigned: bigger, more visual, animated hover, decorative patterns
+- Sticky mobile action bar: Send KOT + Bill always accessible at bottom on phones

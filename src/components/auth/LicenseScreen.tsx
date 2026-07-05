@@ -76,7 +76,7 @@ export function LicenseActivationScreen({ onActivated }: LicenseActivationScreen
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 relative overflow-hidden">
+    <div className="min-h-screen img-bg flex items-center justify-center p-4 relative overflow-hidden">
       {/* Background decoration */}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute -top-32 -right-32 w-96 h-96 rounded-full bg-orange-500/20 blur-3xl" />
@@ -215,7 +215,7 @@ function DemoKey({ label, code, onClick }: { label: string; code: string; onClic
 // Expired license screen
 export function LicenseExpiredScreen({ expiresAt, onReactivate }: { expiresAt: string; onReactivate: () => void }) {
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-rose-950 via-slate-900 to-slate-900">
+    <div className="min-h-screen img-bg flex items-center justify-center p-4">
       <motion.div
         initial={{ opacity: 0, y: 24 }}
         animate={{ opacity: 1, y: 0 }}
