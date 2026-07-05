@@ -58,6 +58,8 @@ export default function CounterMode({ onExit, directMode }: CounterModeProps) {
   const [orderNotes, setOrderNotes] = useState('')
   const [showKOT, setShowKOT] = useState(false)
   const [kotNo, setKotNo] = useState(0)
+  const [printedItemIds, setPrintedItemIds] = useState<Set<string>>(new Set())
+  const [kotItemsToPrint, setKotItemsToPrint] = useState<OrderItem[]>([])
   const [showBilling, setShowBilling] = useState(false)
   const [billNo, setBillNo] = useState(1001)
   const [settings, setSettings] = useState<any>(null)
@@ -191,6 +193,9 @@ export default function CounterMode({ onExit, directMode }: CounterModeProps) {
   const closeTable = () => {
     setSelectedTable(null)
     setOrder(null)
+    setPrintedItemIds(new Set())
+    setKotItemsToPrint([])
+    setKotNo(0)
     loadTables()
   }
 
@@ -298,7 +303,6 @@ export default function CounterMode({ onExit, directMode }: CounterModeProps) {
     if (!order) return
     setBusy(true)
     try {
-      // Update meta first (we use a tiny PATCH via /items pattern; here we just send)
       const res = await shopFetch(`/api/orders/${order.id}/send`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -311,11 +315,33 @@ export default function CounterMode({ onExit, directMode }: CounterModeProps) {
       }
       const data = await res.json()
       setOrder(data.order)
+
+      // Determine which items to print:
+      // - First print: ALL items
+      // - Reprint (kotNo > 0): only NEW items (not in printedItemIds)
+      const allItems = (data.order.items || []).filter((i: OrderItem) => i.status !== 'cancelled')
+      const isNewPrint = kotNo === 0
+      const itemsToPrint = isNewPrint
+        ? allItems
+        : allItems.filter((i: OrderItem) => !printedItemIds.has(i.id))
+
+      if (itemsToPrint.length === 0 && !isNewPrint) {
+        toast.info('No new items to print since last KOT')
+        setBusy(false)
+        return
+      }
+
+      // Track which items have been printed
+      const newPrintedSet = new Set(printedItemIds)
+      itemsToPrint.forEach((i: OrderItem) => newPrintedSet.add(i.id))
+      setPrintedItemIds(newPrintedSet)
+      setKotItemsToPrint(itemsToPrint)
+
       const nextKotNo = (kotNo || 0) + 1
       setKotNo(nextKotNo)
       setShowKOT(true)
 
-      // Broadcast to kitchen
+      // Broadcast to kitchen — only new items on reprint
       const payload: KOTPayload = {
         orderId: data.order.id,
         tableNumber: data.order.table?.number || 0,
@@ -324,12 +350,18 @@ export default function CounterMode({ onExit, directMode }: CounterModeProps) {
         guests: data.order.guests,
         waiterName: data.order.waiterName,
         notes: data.order.notes,
-        items: data.order.items || [],
+        items: itemsToPrint,
         createdAt: data.order.createdAt,
+        isUpdate: !isNewPrint,
       }
       sync.sendKOT(payload)
       await loadTables()
-      toast.success('KOT sent to kitchen')
+
+      if (isNewPrint) {
+        toast.success('KOT sent to kitchen')
+      } else {
+        toast.success(`Re-printed KOT with ${itemsToPrint.length} new item(s)`)
+      }
     } finally {
       setBusy(false)
     }
@@ -623,14 +655,20 @@ export default function CounterMode({ onExit, directMode }: CounterModeProps) {
       <PrintPreview
         open={showKOT}
         onClose={() => setShowKOT(false)}
-        title={`KOT — ${order?.table?.number === 0 ? 'Direct Order' : 'Table ' + order?.table?.number}`}
-        subtitle="2 copies will print"
+        title={`KOT ${kotNo > 1 ? `(Reprint #${kotNo})` : ''} — ${order?.table?.number === 0 ? 'Direct Order' : 'Table ' + order?.table?.number}`}
+        subtitle={kotNo > 1 ? 'Only NEW items since last print' : '2 copies will print'}
         copies={[
           { label: 'Kitchen Copy', banner: '*** KITCHEN COPY ***' },
           { label: 'Customer Copy', banner: '*** CUSTOMER COPY ***' },
         ]}
       >
-        {order && <KOTReceipt order={order} kotNo={kotNo} style={settings} />}
+        {order && (
+          <KOTReceipt
+            order={{ ...order, items: kotItemsToPrint }}
+            kotNo={kotNo}
+            style={settings}
+          />
+        )}
       </PrintPreview>
 
       {/* Billing dialog */}

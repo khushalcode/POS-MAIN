@@ -5,23 +5,25 @@ import { motion } from 'framer-motion'
 import {
   UtensilsCrossed, Wifi, WifiOff, ArrowRight,
   Store, LayoutDashboard, Zap, Store as StoreIcon, ChevronDown, CheckCircle2,
-  Receipt, ChefHat, Bike, ShieldCheck,
+  Receipt, ChefHat, Bike, ShieldCheck, TrendingUp, Users, Table2, Package,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { useSession } from '@/lib/session'
 import { LoginScreen } from '@/components/auth/LoginScreen'
 import { LicenseActivationScreen, LicenseExpiredScreen, useLicenseCheck } from '@/components/auth/LicenseScreen'
+import { GlobalShortcutBar } from '@/components/shared/GlobalShortcutBar'
+import { useShopFetch } from '@/hooks/use-shop-fetch'
 import CounterMode from '@/components/counter/CounterMode'
 import KitchenMode from '@/components/kitchen/KitchenMode'
 import HistoryMode from '@/components/history/HistoryMode'
 import ManagementMode from '@/components/management/ManagementMode'
 import ZomatoMode from '@/components/zomato/ZomatoMode'
+import { formatCurrency } from '@/lib/format'
 
 type Mode = 'home' | 'counter' | 'kitchen' | 'history' | 'management' | 'direct' | 'zomato'
 
-const STAFF_MODES: Mode[] = ['counter', 'direct', 'kitchen', 'history', 'zomato']
 const ADMIN_MODES: Mode[] = ['counter', 'direct', 'kitchen', 'history', 'zomato', 'management']
 
 export default function Home() {
@@ -62,21 +64,11 @@ export default function Home() {
     )
   }
   if (licenseStatus === 'not_activated' || showLicenseScreen) {
-    return (
-      <LicenseActivationScreen
-        onActivated={() => { recheck(); setShowLicenseScreen(false) }}
-      />
-    )
+    return <LicenseActivationScreen onActivated={() => { recheck(); setShowLicenseScreen(false) }} />
   }
   if (licenseStatus === 'expired') {
-    return (
-      <LicenseExpiredScreen
-        expiresAt={expiresAt || ''}
-        onReactivate={() => setShowLicenseScreen(true)}
-      />
-    )
+    return <LicenseExpiredScreen expiresAt={expiresAt || ''} onReactivate={() => setShowLicenseScreen(true)} />
   }
-
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center img-bg">
@@ -84,12 +76,9 @@ export default function Home() {
       </div>
     )
   }
+  if (!user) return <LoginScreen onLoggedOut={() => setMode('home')} />
 
-  if (!user) {
-    return <LoginScreen onLoggedOut={() => setMode('home')} />
-  }
-
-  const allowedModes = user.role === 'admin' ? ADMIN_MODES : STAFF_MODES
+  const allowedModes = user.role === 'admin' ? ADMIN_MODES : ADMIN_MODES.filter((m) => m !== 'management')
 
   if (mode !== 'home' && allowedModes.includes(mode)) {
     if (mode === 'counter') return <CounterMode onExit={backHome} />
@@ -100,10 +89,9 @@ export default function Home() {
     if (mode === 'zomato') return <ZomatoMode onExit={backHome} />
   }
 
-  return <HomeScreen onSelect={enterMode} daysLeft={daysLeft} onReactivate={() => setShowLicenseScreen(true)} />
+  return <HomeScreen mode={mode} onSelect={enterMode} daysLeft={daysLeft} onReactivate={() => setShowLicenseScreen(true)} />
 }
 
-// Per-card color schemes (restored from previous design)
 const CARD_COLORS: Record<string, { gradient: string; glow: string }> = {
   direct: { gradient: 'from-amber-400 via-orange-500 to-rose-500', glow: 'shadow-orange-500/40' },
   counter: { gradient: 'from-orange-500 to-rose-500', glow: 'shadow-orange-500/30' },
@@ -113,21 +101,26 @@ const CARD_COLORS: Record<string, { gradient: string; glow: string }> = {
   management: { gradient: 'from-slate-700 to-slate-900', glow: 'shadow-slate-700/40' },
 }
 
-function HomeScreen({ onSelect, daysLeft, onReactivate }: { onSelect: (m: Mode) => void; daysLeft: number | null; onReactivate: () => void }) {
+function HomeScreen({ mode, onSelect, daysLeft, onReactivate }: { mode: Mode; onSelect: (m: Mode) => void; daysLeft: number | null; onReactivate: () => void }) {
   const { user, currentShop, shops, selectShop, logout } = useSession()
+  const shopFetch = useShopFetch()
   const [online, setOnline] = useState(true)
   const [shopPickerOpen, setShopPickerOpen] = useState(false)
+  const [dashData, setDashData] = useState<any>(null)
 
   useEffect(() => {
     const update = () => setOnline(navigator.onLine)
     update()
     window.addEventListener('online', update)
     window.addEventListener('offline', update)
-    return () => {
-      window.removeEventListener('online', update)
-      window.removeEventListener('offline', update)
-    }
+    return () => { window.removeEventListener('online', update); window.removeEventListener('offline', update) }
   }, [])
+
+  // Load dashboard data
+  useEffect(() => {
+    if (!currentShop) return
+    shopFetch('/api/dashboard').then((r) => r.json()).then((d) => setDashData(d)).catch(() => {})
+  }, [shopFetch, currentShop?.id])
 
   const isAdmin = user?.role === 'admin'
 
@@ -136,110 +129,49 @@ function HomeScreen({ onSelect, daysLeft, onReactivate }: { onSelect: (m: Mode) 
   }
 
   const allModes = [
-    {
-      key: 'direct' as Mode,
-      title: 'Direct Order',
-      subtitle: 'Quick takeaway — skip table assignment',
-      icon: Zap,
-      tags: ['Fast checkout', 'Takeaway', 'Walk-in'],
-      featured: true,
-      roles: ['admin', 'staff'] as const,
-    },
-    {
-      key: 'counter' as Mode,
-      title: 'Counter Mode',
-      subtitle: 'Take orders, manage tables, print KOT & bills',
-      icon: Store,
-      tags: ['Table grid', '2-copy print', 'Billing'],
-      roles: ['admin', 'staff'] as const,
-    },
-    {
-      key: 'zomato' as Mode,
-      title: 'Zomato Orders',
-      subtitle: 'Live Zomato orders — push to kitchen in 1 click',
-      icon: Bike,
-      tags: ['Sync', 'Push to kitchen', 'Status flow'],
-      roles: ['admin', 'staff'] as const,
-    },
-    {
-      key: 'kitchen' as Mode,
-      title: 'Kitchen Mode',
-      subtitle: 'Live KOT display — chefs update item status',
-      icon: ChefHat,
-      tags: ['Real-time KOT', 'Item status', 'Ready alerts'],
-      roles: ['admin', 'staff'] as const,
-    },
-    {
-      key: 'history' as Mode,
-      title: 'Bills & History',
-      subtitle: 'Search past bills, view daily revenue',
-      icon: Receipt,
-      tags: ['Bill search', 'Revenue', 'Day summary'],
-      roles: ['admin', 'staff'] as const,
-    },
-    {
-      key: 'management' as Mode,
-      title: 'Management',
-      subtitle: 'Back-office: dashboard, inventory, finance, reports, audit',
-      icon: LayoutDashboard,
-      tags: ['Dashboard', 'Inventory', 'Finance', 'Reports', 'Audit'],
-      span: 'md:col-span-3',
-      roles: ['admin'] as const,
-    },
+    { key: 'direct' as Mode, title: 'Direct Order', subtitle: 'Quick takeaway', icon: Zap, tags: ['Fast', 'Takeaway'], featured: true, roles: ['admin', 'staff'] as const },
+    { key: 'counter' as Mode, title: 'Counter Mode', subtitle: 'Tables, KOT & bills', icon: Store, tags: ['Tables', '2-copy print'], roles: ['admin', 'staff'] as const },
+    { key: 'zomato' as Mode, title: 'Zomato Orders', subtitle: 'Push to kitchen', icon: Bike, tags: ['Sync', 'Status flow'], roles: ['admin', 'staff'] as const },
+    { key: 'kitchen' as Mode, title: 'Kitchen Mode', subtitle: 'Live KOT display', icon: ChefHat, tags: ['Real-time', 'Ready alerts'], roles: ['admin', 'staff'] as const },
+    { key: 'history' as Mode, title: 'Bills & History', subtitle: 'Past bills, revenue', icon: Receipt, tags: ['Search', 'Revenue'], roles: ['admin', 'staff'] as const },
+    { key: 'management' as Mode, title: 'Management', subtitle: 'Dashboard, inventory, finance', icon: LayoutDashboard, tags: ['Dashboard', 'Reports', 'Audit'], span: 'md:col-span-3', roles: ['admin'] as const },
   ]
 
   const visibleModes = allModes.filter((m) => m.roles.includes(user?.role as any))
 
   return (
     <div className="min-h-screen img-bg">
-      {/* Header — glassmorphism on image background */}
-      <header className="border-b border-white/10 bg-slate-900/70 backdrop-blur-xl sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
+      {/* Header */}
+      <header className="border-b border-white/10 bg-slate-900/70 backdrop-blur-xl sticky top-0 z-30">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-2.5 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-brand-gradient flex items-center justify-center shadow-md">
               <UtensilsCrossed className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h1 className="text-base font-bold tracking-tight text-white">ServingSync POS</h1>
-              <p className="text-[10px] text-slate-400">
-                {user?.name} ({isAdmin ? 'Admin' : 'Staff'})
-              </p>
+              <h1 className="text-sm font-bold text-white">ServingSync POS</h1>
+              <p className="text-[10px] text-slate-400">{user?.name} · {currentShop?.name}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             {daysLeft !== null && (
-              <Badge
-                variant="outline"
-                className={`text-[10px] ${daysLeft < 30 ? 'bg-rose-500/20 text-rose-300 border-rose-500/30' : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'}`}
-              >
-                <ShieldCheck className="w-3 h-3 mr-1" />
-                {daysLeft}d
+              <Badge className={`text-[10px] ${daysLeft < 30 ? 'bg-rose-500/20 text-rose-300 border-rose-500/30' : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'}`}>
+                <ShieldCheck className="w-3 h-3 mr-1" />{daysLeft}d
               </Badge>
             )}
             {shops.length > 1 && (
               <div className="relative">
-                <button
-                  onClick={() => setShopPickerOpen(!shopPickerOpen)}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/10 text-white border border-white/20 text-xs font-semibold hover:bg-white/20"
-                >
+                <button onClick={() => setShopPickerOpen(!shopPickerOpen)} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/10 text-white border border-white/20 text-xs font-semibold hover:bg-white/20">
                   <StoreIcon className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline truncate max-w-[140px]">{currentShop?.name}</span>
+                  <span className="hidden sm:inline">{currentShop?.name}</span>
                   <span className="sm:hidden">{currentShop?.code}</span>
                   <ChevronDown className="w-3 h-3" />
                 </button>
                 {shopPickerOpen && (
                   <div className="absolute right-0 mt-1 w-56 bg-slate-800 rounded-xl shadow-2xl border border-white/10 py-1 z-50">
-                    <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider px-3 py-1.5">Switch shop</p>
                     {shops.map((s) => (
-                      <button
-                        key={s.id}
-                        onClick={() => { selectShop(s); setShopPickerOpen(false) }}
-                        className={`w-full flex items-center justify-between px-3 py-2 text-xs hover:bg-slate-700 ${currentShop?.id === s.id ? 'bg-slate-700' : ''}`}
-                      >
-                        <div className="flex flex-col items-start">
-                          <span className="font-semibold text-white">{s.name}</span>
-                          <span className="text-[10px] text-slate-400">{s.code}</span>
-                        </div>
+                      <button key={s.id} onClick={() => { selectShop(s); setShopPickerOpen(false) }} className={`w-full flex items-center justify-between px-3 py-2 text-xs hover:bg-slate-700 ${currentShop?.id === s.id ? 'bg-slate-700' : ''}`}>
+                        <div><span className="font-semibold text-white">{s.name}</span><br /><span className="text-[10px] text-slate-400">{s.code}</span></div>
                         {currentShop?.id === s.id && <CheckCircle2 className="w-4 h-4 text-brand" />}
                       </button>
                     ))}
@@ -247,187 +179,117 @@ function HomeScreen({ onSelect, daysLeft, onReactivate }: { onSelect: (m: Mode) 
                 )}
               </div>
             )}
-            <div className={`flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-full ${
-              online ? 'bg-emerald-500/20 text-emerald-300' : 'bg-rose-500/20 text-rose-300'
-            }`}>
-              {online ? <Wifi className="w-3.5 h-3.5" /> : <WifiOff className="w-3.5 h-3.5" />}
-              <span className="hidden sm:inline">{online ? 'Online' : 'Offline'}</span>
+            <div className={`flex items-center gap-1 text-xs px-2 py-1.5 rounded-full ${online ? 'bg-emerald-500/20 text-emerald-300' : 'bg-rose-500/20 text-rose-300'}`}>
+              {online ? <Wifi className="w-3 h-3" /> : <WifiOff className="w-3 h-3" />}
             </div>
-            <Button variant="ghost" size="sm" onClick={logout} className="text-xs text-slate-300 hover:text-white hover:bg-white/10">
-              Sign out
-            </Button>
+            <Button variant="ghost" size="sm" onClick={logout} className="text-xs text-slate-300 hover:text-white hover:bg-white/10">Sign out</Button>
           </div>
         </div>
       </header>
 
-      {/* Hero */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 pt-10 sm:pt-14 pb-6 text-center">
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4 }}
-        >
-          <Badge variant="secondary" className="mb-2 bg-white/10 text-white border-white/20 backdrop-blur">
-            {currentShop?.name}
-          </Badge>
-          <h2 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-white mb-2 drop-shadow-lg">
-            Welcome, {user?.name.split(' ')[0]}.
-          </h2>
-          <p className="text-sm sm:text-base text-slate-300 max-w-xl mx-auto">
-            {isAdmin
-              ? 'Full access to all modes including Management.'
-              : 'Counter, Direct Order, Zomato, Kitchen & History access.'}
-          </p>
+      {/* Global shortcut bar */}
+      <GlobalShortcutBar currentMode={mode} onNavigate={onSelect} />
+
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+        {/* Dashboard stats — shown to ALL users */}
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
+          <h2 className="text-xl font-bold text-white mb-3 drop-shadow">Dashboard · {currentShop?.name}</h2>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+            <DashStat label="Today's Revenue" value={formatCurrency(dashData?.today?.revenue || 0)} sub={`${dashData?.today?.count || 0} bills`} icon={TrendingUp} gradient="from-emerald-500 to-teal-600" />
+            <DashStat label="Monthly Revenue" value={formatCurrency(dashData?.month?.revenue || 0)} sub={`${dashData?.month?.count || 0} bills`} icon={Receipt} gradient="from-blue-500 to-indigo-600" />
+            <DashStat label="Tables Occupied" value={`${dashData?.tables?.occupied || 0} / ${dashData?.tables?.total || 0}`} sub="Live tables" icon={Table2} gradient="from-orange-500 to-rose-600" />
+            <DashStat label="Menu Items" value={String(dashData?.catalog?.menuItems || 0)} sub={`${dashData?.catalog?.customers || 0} customers`} icon={Package} gradient="from-violet-500 to-fuchsia-600" />
+          </div>
         </motion.div>
-      </section>
 
-      {/* Mode cards — compact, clean, professional */}
-      <section className="max-w-5xl mx-auto px-4 sm:px-6 pb-12 grid gap-3 sm:gap-4 md:grid-cols-3">
-        {visibleModes.map((m, i) => {
-          const colors = CARD_COLORS[m.key] || CARD_COLORS.counter
-          return (
-            <motion.div
-              key={m.key}
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              whileHover={{ y: -4 }}
-              transition={{ duration: 0.3, delay: 0.04 + i * 0.04 }}
-              className={m.span}
-            >
-              <Card
-                onClick={() => onSelect(m.key)}
-                className={`group cursor-pointer relative overflow-hidden border-0 shadow-lg ${colors.glow} transition-shadow duration-300 hover:shadow-xl ${
-                  m.featured ? 'ring-2 ring-amber-400/60 ring-offset-2 ring-offset-slate-900' : ''
-                } ${m.span ? 'min-h-[130px]' : 'min-h-[140px]'}`}
-              >
-                <div className={`absolute inset-0 bg-gradient-to-br ${colors.gradient} pointer-events-none`} />
-                <div className="absolute inset-0 opacity-15 pointer-events-none" style={{
-                  backgroundImage: 'radial-gradient(circle at 20% 30%, white 1px, transparent 1px)',
-                  backgroundSize: '30px 30px',
-                }} />
-                <div className="absolute -top-8 -right-8 w-28 h-28 rounded-full bg-white/10 blur-2xl pointer-events-none" />
-
-                {m.featured && (
-                  <div className="absolute top-2 right-2 pointer-events-none z-10">
-                    <Badge className="bg-white text-orange-700 border-0 text-[9px] font-bold uppercase">⚡ Fast</Badge>
-                  </div>
-                )}
-                {m.key === 'zomato' && (
-                  <div className="absolute top-2 right-2 pointer-events-none z-10">
-                    <Badge className="bg-white text-rose-700 border-0 text-[9px] font-bold uppercase">Zomato</Badge>
-                  </div>
-                )}
-
-                <div className={`relative p-4 text-white h-full flex flex-col ${m.span ? 'md:flex-row md:items-center md:gap-4' : ''}`}>
-                  <div className={`w-11 h-11 rounded-xl bg-white/25 backdrop-blur-sm flex items-center justify-center ring-1 ring-white/30 mb-2.5 ${m.span ? 'md:shrink-0 md:mb-0' : ''}`}>
-                    <m.icon className="w-5 h-5" strokeWidth={2.2} />
-                  </div>
-
-                  <div className={m.span ? 'flex-1' : 'flex-1 flex flex-col'}>
-                    <h3 className={`font-bold mb-0.5 tracking-tight ${m.span ? 'text-lg sm:text-xl' : 'text-base sm:text-lg'}`}>
-                      {m.title}
-                    </h3>
-                    <p className="text-[11px] text-white/85 mb-2 line-clamp-1">{m.subtitle}</p>
-
-                    <div className="flex flex-wrap gap-1 mb-2">
-                      {m.tags.slice(0, m.span ? 5 : 3).map((t) => (
-                        <span
-                          key={t}
-                          className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-white/20 backdrop-blur-sm ring-1 ring-white/25"
-                        >
-                          {t}
-                        </span>
-                      ))}
-                    </div>
-
-                    <div className="mt-auto flex items-center gap-1 text-xs font-bold">
-                      Launch
-                      <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
-                    </div>
-                  </div>
-                </div>
-              </Card>
-            </motion.div>
-          )
-        })}
-      </section>
-
-      {/* Footer */}
-      <footer className="max-w-6xl mx-auto px-4 sm:px-6 pb-6">
-        <div className="flex items-center justify-center gap-4 text-[10px] text-slate-400">
-          {daysLeft !== null && (
-            <span className="flex items-center gap-1">
-              <ShieldCheck className="w-3 h-3" /> License: {daysLeft} days
-            </span>
-          )}
-          <button onClick={onReactivate} className="hover:text-white underline">
-            Enter new key
-          </button>
-        </div>
-      </footer>
-    </div>
-  )
-}
-
-function ShopSelectorInline({ shops, onPick, onLogout }: { shops: any[]; onPick: (s: any) => void; onLogout: () => void }) {
-  return (
-    <div className="min-h-screen img-bg flex items-center justify-center p-4">
-      <motion.div
-        initial={{ opacity: 0, y: 24 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-        className="w-full max-w-3xl"
-      >
-        <div className="text-center mb-6">
-          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white drop-shadow-lg">Select your shop</h1>
-          <p className="text-sm text-slate-300 mt-1">All orders, bills and KOTs will be filtered for the selected shop</p>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {shops.map((shop, i) => {
-            const colors: Record<string, string> = {
-              orange: 'from-orange-500 to-rose-500',
-              emerald: 'from-emerald-500 to-teal-500',
-              violet: 'from-violet-500 to-fuchsia-500',
-            }
-            const c = colors[shop.color] || colors.orange
+        {/* Mode cards */}
+        <section className="grid gap-3 sm:gap-4 md:grid-cols-3 mb-6">
+          {visibleModes.map((m, i) => {
+            const colors = CARD_COLORS[m.key] || CARD_COLORS.counter
             return (
-              <motion.div
-                key={shop.id}
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 + i * 0.08 }}
-              >
-                <Card
-                  onClick={() => onPick(shop)}
-                  className="cursor-pointer relative overflow-hidden border-0 shadow-xl hover:shadow-2xl transition-all hover:-translate-y-1"
-                >
-                  <div className={`absolute inset-0 bg-gradient-to-br ${c} opacity-95 pointer-events-none`} />
-                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.25),transparent_55%)] pointer-events-none" />
-                  <div className="relative p-6 text-white">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="w-12 h-12 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center ring-1 ring-white/30">
-                        <Store className="w-6 h-6" />
-                      </div>
-                      <Badge variant="outline" className="bg-white/20 border-white/30 text-white text-[10px] uppercase tracking-wider">
-                        {shop.code}
-                      </Badge>
+              <motion.div key={m.key} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} whileHover={{ y: -4 }} transition={{ duration: 0.3, delay: 0.04 + i * 0.04 }} className={m.span}>
+                <Card onClick={() => onSelect(m.key)} className={`group cursor-pointer relative overflow-hidden border-0 shadow-lg ${colors.glow} hover:shadow-xl transition-shadow ${m.featured ? 'ring-2 ring-amber-400/60 ring-offset-2 ring-offset-slate-900' : ''} ${m.span ? 'min-h-[130px]' : 'min-h-[130px]'}`}>
+                  <div className={`absolute inset-0 bg-gradient-to-br ${colors.gradient} pointer-events-none`} />
+                  <div className="absolute inset-0 opacity-15 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at 20% 30%, white 1px, transparent 1px)', backgroundSize: '30px 30px' }} />
+                  <div className="absolute -top-8 -right-8 w-28 h-28 rounded-full bg-white/10 blur-2xl pointer-events-none" />
+                  {m.featured && <div className="absolute top-2 right-2 z-10"><Badge className="bg-white text-orange-700 border-0 text-[9px] font-bold uppercase">⚡ Fast</Badge></div>}
+                  {m.key === 'zomato' && <div className="absolute top-2 right-2 z-10"><Badge className="bg-white text-rose-700 border-0 text-[9px] font-bold uppercase">Zomato</Badge></div>}
+                  <div className={`relative p-4 text-white h-full flex flex-col ${m.span ? 'md:flex-row md:items-center md:gap-4' : ''}`}>
+                    <div className={`w-11 h-11 rounded-xl bg-white/25 backdrop-blur-sm flex items-center justify-center ring-1 ring-white/30 mb-2.5 ${m.span ? 'md:shrink-0 md:mb-0' : ''}`}>
+                      <m.icon className="w-5 h-5" strokeWidth={2.2} />
                     </div>
-                    <h3 className="text-xl font-bold mb-1">{shop.name}</h3>
-                    {shop.address && <p className="text-xs text-white/80 mb-3 line-clamp-2">{shop.address}</p>}
-                    <div className="flex items-center gap-1.5 text-sm font-semibold">
-                      Open <ArrowRight className="w-4 h-4" />
+                    <div className={m.span ? 'flex-1' : 'flex-1 flex flex-col'}>
+                      <h3 className={`font-bold mb-0.5 ${m.span ? 'text-lg sm:text-xl' : 'text-base sm:text-lg'}`}>{m.title}</h3>
+                      <p className="text-[11px] text-white/85 mb-2 line-clamp-1">{m.subtitle}</p>
+                      <div className="flex flex-wrap gap-1 mb-2">
+                        {m.tags.map((t) => <span key={t} className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-white/20 ring-1 ring-white/25">{t}</span>)}
+                      </div>
+                      <div className="mt-auto flex items-center gap-1 text-xs font-bold">Launch <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" /></div>
                     </div>
                   </div>
                 </Card>
               </motion.div>
             )
           })}
+        </section>
+
+        {/* Footer */}
+        <div className="flex items-center justify-center gap-4 text-[10px] text-slate-400">
+          {daysLeft !== null && <span className="flex items-center gap-1"><ShieldCheck className="w-3 h-3" /> License: {daysLeft} days</span>}
+          <button onClick={onReactivate} className="hover:text-white underline">Enter new key</button>
         </div>
-        <div className="text-center mt-6">
-          <Button variant="ghost" size="sm" onClick={onLogout} className="text-slate-300 hover:text-white">
-            Sign out
-          </Button>
+      </main>
+    </div>
+  )
+}
+
+function DashStat({ label, value, sub, icon: Icon, gradient }: { label: string; value: string; sub: string; icon: any; gradient: string }) {
+  return (
+    <Card className="border-0 shadow-lg overflow-hidden relative">
+      <div className={`absolute inset-0 bg-gradient-to-br ${gradient} opacity-95`} />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.2),transparent_60%)]" />
+      <CardContent className="relative p-3 sm:p-4 text-white">
+        <div className="flex items-center justify-between mb-1.5">
+          <span className="text-[10px] font-medium text-white/80 uppercase tracking-wide">{label}</span>
+          <Icon className="w-4 h-4 text-white/80" />
         </div>
+        <div className="text-lg sm:text-2xl font-bold">{value}</div>
+        <div className="text-[10px] text-white/70">{sub}</div>
+      </CardContent>
+    </Card>
+  )
+}
+
+function ShopSelectorInline({ shops, onPick, onLogout }: { shops: any[]; onPick: (s: any) => void; onLogout: () => void }) {
+  return (
+    <div className="min-h-screen img-bg flex items-center justify-center p-4">
+      <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-3xl">
+        <div className="text-center mb-6">
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-white drop-shadow">Select your shop</h1>
+          <p className="text-sm text-slate-300 mt-1">All data is filtered for the selected shop</p>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {shops.map((shop, i) => {
+            const colors: Record<string, string> = { orange: 'from-orange-500 to-rose-500', emerald: 'from-emerald-500 to-teal-500', violet: 'from-violet-500 to-fuchsia-500' }
+            return (
+              <motion.div key={shop.id} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 + i * 0.08 }}>
+                <Card onClick={() => onPick(shop)} className="cursor-pointer relative overflow-hidden border-0 shadow-xl hover:shadow-2xl transition-all hover:-translate-y-1">
+                  <div className={`absolute inset-0 bg-gradient-to-br ${colors[shop.color] || colors.orange} opacity-95`} />
+                  <div className="relative p-6 text-white">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="w-12 h-12 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center ring-1 ring-white/30"><Store className="w-6 h-6" /></div>
+                      <Badge variant="outline" className="bg-white/20 border-white/30 text-white text-[10px] uppercase">{shop.code}</Badge>
+                    </div>
+                    <h3 className="text-xl font-bold mb-1">{shop.name}</h3>
+                    {shop.address && <p className="text-xs text-white/80 mb-3 line-clamp-2">{shop.address}</p>}
+                    <div className="flex items-center gap-1.5 text-sm font-semibold">Open <ArrowRight className="w-4 h-4" /></div>
+                  </div>
+                </Card>
+              </motion.div>
+            )
+          })}
+        </div>
+        <div className="text-center mt-6"><Button variant="ghost" size="sm" onClick={onLogout} className="text-slate-300">Sign out</Button></div>
       </motion.div>
     </div>
   )
