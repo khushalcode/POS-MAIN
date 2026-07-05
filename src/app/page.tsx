@@ -56,7 +56,7 @@ export default function Home() {
 
   if (licenseStatus === 'loading') {
     return (
-      <div className="min-h-screen flex items-center justify-center soft-bg">
+      <div className="min-h-screen flex items-center justify-center img-bg">
         <div className="w-12 h-12 rounded-xl bg-brand-gradient animate-pulse" />
       </div>
     )
@@ -79,7 +79,7 @@ export default function Home() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center soft-bg">
+      <div className="min-h-screen flex items-center justify-center img-bg">
         <div className="w-12 h-12 rounded-xl bg-brand-gradient animate-pulse" />
       </div>
     )
@@ -101,6 +101,16 @@ export default function Home() {
   }
 
   return <HomeScreen onSelect={enterMode} daysLeft={daysLeft} onReactivate={() => setShowLicenseScreen(true)} />
+}
+
+// Per-card color schemes (restored from previous design)
+const CARD_COLORS: Record<string, { gradient: string; glow: string }> = {
+  direct: { gradient: 'from-amber-400 via-orange-500 to-rose-500', glow: 'shadow-orange-500/40' },
+  counter: { gradient: 'from-orange-500 to-rose-500', glow: 'shadow-orange-500/30' },
+  zomato: { gradient: 'from-rose-500 to-red-600', glow: 'shadow-rose-500/30' },
+  kitchen: { gradient: 'from-emerald-500 to-teal-600', glow: 'shadow-emerald-500/30' },
+  history: { gradient: 'from-violet-500 to-fuchsia-600', glow: 'shadow-violet-500/30' },
+  management: { gradient: 'from-slate-700 to-slate-900', glow: 'shadow-slate-700/40' },
 }
 
 function HomeScreen({ onSelect, daysLeft, onReactivate }: { onSelect: (m: Mode) => void; daysLeft: number | null; onReactivate: () => void }) {
@@ -125,7 +135,6 @@ function HomeScreen({ onSelect, daysLeft, onReactivate }: { onSelect: (m: Mode) 
     return <ShopSelectorInline shops={shops} onPick={(s) => selectShop(s)} onLogout={logout} />
   }
 
-  // Unified modes — all use brand-gradient (no per-card colors)
   const allModes = [
     {
       key: 'direct' as Mode,
@@ -182,17 +191,17 @@ function HomeScreen({ onSelect, daysLeft, onReactivate }: { onSelect: (m: Mode) 
   const visibleModes = allModes.filter((m) => m.roles.includes(user?.role as any))
 
   return (
-    <div className="min-h-screen soft-bg">
-      {/* Header */}
-      <header className="border-b border-slate-200/70 bg-white/80 backdrop-blur-xl sticky top-0 z-10">
+    <div className="min-h-screen img-bg">
+      {/* Header — glassmorphism on image background */}
+      <header className="border-b border-white/10 bg-slate-900/70 backdrop-blur-xl sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-brand-gradient flex items-center justify-center shadow-md">
               <UtensilsCrossed className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h1 className="text-base font-bold tracking-tight text-slate-900">ServingSync POS</h1>
-              <p className="text-[10px] text-slate-500">
+              <h1 className="text-base font-bold tracking-tight text-white">ServingSync POS</h1>
+              <p className="text-[10px] text-slate-400">
                 {user?.name} ({isAdmin ? 'Admin' : 'Staff'})
               </p>
             </div>
@@ -201,7 +210,7 @@ function HomeScreen({ onSelect, daysLeft, onReactivate }: { onSelect: (m: Mode) 
             {daysLeft !== null && (
               <Badge
                 variant="outline"
-                className={`text-[10px] ${daysLeft < 30 ? 'bg-rose-50 text-rose-700 border-rose-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}
+                className={`text-[10px] ${daysLeft < 30 ? 'bg-rose-500/20 text-rose-300 border-rose-500/30' : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'}`}
               >
                 <ShieldCheck className="w-3 h-3 mr-1" />
                 {daysLeft}d
@@ -211,7 +220,7 @@ function HomeScreen({ onSelect, daysLeft, onReactivate }: { onSelect: (m: Mode) 
               <div className="relative">
                 <button
                   onClick={() => setShopPickerOpen(!shopPickerOpen)}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-brand-soft text-brand-text border border-brand/20 text-xs font-semibold"
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/10 text-white border border-white/20 text-xs font-semibold hover:bg-white/20"
                 >
                   <StoreIcon className="w-3.5 h-3.5" />
                   <span className="hidden sm:inline truncate max-w-[140px]">{currentShop?.name}</span>
@@ -219,17 +228,17 @@ function HomeScreen({ onSelect, daysLeft, onReactivate }: { onSelect: (m: Mode) 
                   <ChevronDown className="w-3 h-3" />
                 </button>
                 {shopPickerOpen && (
-                  <div className="absolute right-0 mt-1 w-56 bg-white rounded-xl shadow-2xl border border-slate-200 py-1 z-50">
+                  <div className="absolute right-0 mt-1 w-56 bg-slate-800 rounded-xl shadow-2xl border border-white/10 py-1 z-50">
                     <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider px-3 py-1.5">Switch shop</p>
                     {shops.map((s) => (
                       <button
                         key={s.id}
                         onClick={() => { selectShop(s); setShopPickerOpen(false) }}
-                        className={`w-full flex items-center justify-between px-3 py-2 text-xs hover:bg-slate-50 ${currentShop?.id === s.id ? 'bg-slate-50' : ''}`}
+                        className={`w-full flex items-center justify-between px-3 py-2 text-xs hover:bg-slate-700 ${currentShop?.id === s.id ? 'bg-slate-700' : ''}`}
                       >
                         <div className="flex flex-col items-start">
-                          <span className="font-semibold text-slate-900">{s.name}</span>
-                          <span className="text-[10px] text-slate-500">{s.code}</span>
+                          <span className="font-semibold text-white">{s.name}</span>
+                          <span className="text-[10px] text-slate-400">{s.code}</span>
                         </div>
                         {currentShop?.id === s.id && <CheckCircle2 className="w-4 h-4 text-brand" />}
                       </button>
@@ -239,12 +248,12 @@ function HomeScreen({ onSelect, daysLeft, onReactivate }: { onSelect: (m: Mode) 
               </div>
             )}
             <div className={`flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-full ${
-              online ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'
+              online ? 'bg-emerald-500/20 text-emerald-300' : 'bg-rose-500/20 text-rose-300'
             }`}>
               {online ? <Wifi className="w-3.5 h-3.5" /> : <WifiOff className="w-3.5 h-3.5" />}
               <span className="hidden sm:inline">{online ? 'Online' : 'Offline'}</span>
             </div>
-            <Button variant="ghost" size="sm" onClick={logout} className="text-xs">
+            <Button variant="ghost" size="sm" onClick={logout} className="text-xs text-slate-300 hover:text-white hover:bg-white/10">
               Sign out
             </Button>
           </div>
@@ -252,19 +261,19 @@ function HomeScreen({ onSelect, daysLeft, onReactivate }: { onSelect: (m: Mode) 
       </header>
 
       {/* Hero */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 pt-8 sm:pt-12 pb-6 text-center">
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 pt-10 sm:pt-14 pb-6 text-center">
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
         >
-          <Badge variant="secondary" className="mb-2 bg-brand-soft text-brand-text border-brand/20">
+          <Badge variant="secondary" className="mb-2 bg-white/10 text-white border-white/20 backdrop-blur">
             {currentShop?.name}
           </Badge>
-          <h2 className="text-2xl sm:text-4xl font-extrabold tracking-tight text-slate-900 mb-1">
+          <h2 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-white mb-2 drop-shadow-lg">
             Welcome, {user?.name.split(' ')[0]}.
           </h2>
-          <p className="text-xs sm:text-sm text-slate-500 max-w-xl mx-auto">
+          <p className="text-sm sm:text-base text-slate-300 max-w-xl mx-auto">
             {isAdmin
               ? 'Full access to all modes including Management.'
               : 'Counter, Direct Order, Zomato, Kitchen & History access.'}
@@ -272,55 +281,62 @@ function HomeScreen({ onSelect, daysLeft, onReactivate }: { onSelect: (m: Mode) 
         </motion.div>
       </section>
 
-      {/* Mode cards — all unified brand-gradient */}
+      {/* Mode cards — per-card colors restored */}
       <section className="max-w-6xl mx-auto px-4 sm:px-6 pb-12 grid gap-3 sm:gap-4 md:grid-cols-3">
-        {visibleModes.map((m, i) => (
-          <motion.div
-            key={m.key}
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, delay: 0.04 + i * 0.04 }}
-            className={m.span}
-          >
-            <Card
-              onClick={() => onSelect(m.key)}
-              className={`group cursor-pointer relative overflow-hidden border-0 shadow-md card-lift ${
-                m.featured ? 'ring-2 ring-brand/40 ring-offset-2' : ''
-              } ${m.span ? 'min-h-[150px]' : 'min-h-[140px]'}`}
+        {visibleModes.map((m, i) => {
+          const colors = CARD_COLORS[m.key] || CARD_COLORS.counter
+          return (
+            <motion.div
+              key={m.key}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: 0.04 + i * 0.04 }}
+              className={m.span}
             >
-              {/* Unified brand gradient for ALL cards */}
-              <div className="absolute inset-0 bg-brand-gradient opacity-95 pointer-events-none" />
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.2),transparent_60%)] pointer-events-none" />
-              {m.featured && (
-                <div className="absolute top-2 right-2 pointer-events-none z-10">
-                  <Badge className="bg-white text-brand-text border-0 text-[9px] font-bold uppercase">⚡ Fast</Badge>
-                </div>
-              )}
-              <div className={`relative p-4 sm:p-5 text-white ${m.span ? 'md:flex md:items-center md:gap-5' : ''}`}>
-                <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center ring-1 ring-white/30 ${m.span ? 'mb-0 md:shrink-0' : 'mb-3'}`}>
-                  <m.icon className="w-5 h-5 sm:w-6 sm:h-6" />
-                </div>
-                <div className={m.span ? 'flex-1' : ''}>
-                  <h3 className={`font-bold mb-0.5 ${m.span ? 'text-xl sm:text-2xl' : 'text-base sm:text-lg'}`}>{m.title}</h3>
-                  <p className="text-[11px] sm:text-xs text-white/85 mb-2.5 line-clamp-1">{m.subtitle}</p>
-                  <div className="flex flex-wrap gap-1 mb-2.5">
-                    {m.tags.slice(0, m.span ? 6 : 3).map((t) => (
-                      <span
-                        key={t}
-                        className="text-[9px] sm:text-[10px] font-medium px-1.5 py-0.5 rounded bg-white/15 backdrop-blur-sm ring-1 ring-white/20"
-                      >
-                        {t}
-                      </span>
-                    ))}
+              <Card
+                onClick={() => onSelect(m.key)}
+                className={`group cursor-pointer relative overflow-hidden border-0 shadow-xl ${colors.glow} hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 ${
+                  m.featured ? 'ring-2 ring-amber-400 ring-offset-2 ring-offset-slate-900' : ''
+                } ${m.span ? 'min-h-[160px]' : 'min-h-[150px]'}`}
+              >
+                <div className={`absolute inset-0 bg-gradient-to-br ${colors.gradient} opacity-95 pointer-events-none`} />
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.25),transparent_55%)] pointer-events-none" />
+                {m.featured && (
+                  <div className="absolute top-2 right-2 pointer-events-none z-10">
+                    <Badge className="bg-white text-orange-700 border-0 text-[9px] font-bold uppercase">⚡ Fast</Badge>
                   </div>
-                  <div className="flex items-center gap-1 text-xs font-semibold">
-                    Open <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+                )}
+                {m.key === 'zomato' && (
+                  <div className="absolute top-2 right-2 pointer-events-none z-10">
+                    <Badge className="bg-white text-rose-700 border-0 text-[9px] font-bold uppercase">Zomato</Badge>
+                  </div>
+                )}
+                <div className={`relative p-4 sm:p-5 text-white ${m.span ? 'md:flex md:items-center md:gap-5' : ''}`}>
+                  <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center ring-1 ring-white/30 ${m.span ? 'mb-0 md:shrink-0' : 'mb-3'}`}>
+                    <m.icon className="w-5 h-5 sm:w-6 sm:h-6" />
+                  </div>
+                  <div className={m.span ? 'flex-1' : ''}>
+                    <h3 className={`font-bold mb-0.5 ${m.span ? 'text-xl sm:text-2xl' : 'text-base sm:text-lg'}`}>{m.title}</h3>
+                    <p className="text-[11px] sm:text-xs text-white/85 mb-2.5 line-clamp-1">{m.subtitle}</p>
+                    <div className="flex flex-wrap gap-1 mb-2.5">
+                      {m.tags.slice(0, m.span ? 6 : 3).map((t) => (
+                        <span
+                          key={t}
+                          className="text-[9px] sm:text-[10px] font-medium px-1.5 py-0.5 rounded bg-white/15 backdrop-blur-sm ring-1 ring-white/20"
+                        >
+                          {t}
+                        </span>
+                      ))}
+                    </div>
+                    <div className="flex items-center gap-1 text-xs font-semibold">
+                      Open <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+                    </div>
                   </div>
                 </div>
-              </div>
-            </Card>
-          </motion.div>
-        ))}
+              </Card>
+            </motion.div>
+          )
+        })}
       </section>
 
       {/* Footer */}
@@ -331,7 +347,7 @@ function HomeScreen({ onSelect, daysLeft, onReactivate }: { onSelect: (m: Mode) 
               <ShieldCheck className="w-3 h-3" /> License: {daysLeft} days
             </span>
           )}
-          <button onClick={onReactivate} className="hover:text-slate-700 underline">
+          <button onClick={onReactivate} className="hover:text-white underline">
             Enter new key
           </button>
         </div>
@@ -342,7 +358,7 @@ function HomeScreen({ onSelect, daysLeft, onReactivate }: { onSelect: (m: Mode) 
 
 function ShopSelectorInline({ shops, onPick, onLogout }: { shops: any[]; onPick: (s: any) => void; onLogout: () => void }) {
   return (
-    <div className="min-h-screen soft-bg flex items-center justify-center p-4">
+    <div className="min-h-screen img-bg flex items-center justify-center p-4">
       <motion.div
         initial={{ opacity: 0, y: 24 }}
         animate={{ opacity: 1, y: 0 }}
@@ -350,45 +366,52 @@ function ShopSelectorInline({ shops, onPick, onLogout }: { shops: any[]; onPick:
         className="w-full max-w-3xl"
       >
         <div className="text-center mb-6">
-          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">Select your shop</h1>
-          <p className="text-sm text-slate-500 mt-1">All orders, bills and KOTs will be filtered for the selected shop</p>
+          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white drop-shadow-lg">Select your shop</h1>
+          <p className="text-sm text-slate-300 mt-1">All orders, bills and KOTs will be filtered for the selected shop</p>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {shops.map((shop, i) => (
-            <motion.div
-              key={shop.id}
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 + i * 0.08 }}
-            >
-              <Card
-                onClick={() => onPick(shop)}
-                className="cursor-pointer relative overflow-hidden border-0 shadow-md card-lift"
+          {shops.map((shop, i) => {
+            const colors: Record<string, string> = {
+              orange: 'from-orange-500 to-rose-500',
+              emerald: 'from-emerald-500 to-teal-500',
+              violet: 'from-violet-500 to-fuchsia-500',
+            }
+            const c = colors[shop.color] || colors.orange
+            return (
+              <motion.div
+                key={shop.id}
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 + i * 0.08 }}
               >
-                {/* Unified brand gradient */}
-                <div className="absolute inset-0 bg-brand-gradient opacity-95 pointer-events-none" />
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.2),transparent_60%)] pointer-events-none" />
-                <div className="relative p-6 text-white">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="w-12 h-12 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center ring-1 ring-white/30">
-                      <Store className="w-6 h-6" />
+                <Card
+                  onClick={() => onPick(shop)}
+                  className="cursor-pointer relative overflow-hidden border-0 shadow-xl hover:shadow-2xl transition-all hover:-translate-y-1"
+                >
+                  <div className={`absolute inset-0 bg-gradient-to-br ${c} opacity-95 pointer-events-none`} />
+                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.25),transparent_55%)] pointer-events-none" />
+                  <div className="relative p-6 text-white">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="w-12 h-12 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center ring-1 ring-white/30">
+                        <Store className="w-6 h-6" />
+                      </div>
+                      <Badge variant="outline" className="bg-white/20 border-white/30 text-white text-[10px] uppercase tracking-wider">
+                        {shop.code}
+                      </Badge>
                     </div>
-                    <Badge variant="outline" className="bg-white/20 border-white/30 text-white text-[10px] uppercase tracking-wider">
-                      {shop.code}
-                    </Badge>
+                    <h3 className="text-xl font-bold mb-1">{shop.name}</h3>
+                    {shop.address && <p className="text-xs text-white/80 mb-3 line-clamp-2">{shop.address}</p>}
+                    <div className="flex items-center gap-1.5 text-sm font-semibold">
+                      Open <ArrowRight className="w-4 h-4" />
+                    </div>
                   </div>
-                  <h3 className="text-xl font-bold mb-1">{shop.name}</h3>
-                  {shop.address && <p className="text-xs text-white/80 mb-3 line-clamp-2">{shop.address}</p>}
-                  <div className="flex items-center gap-1.5 text-sm font-semibold">
-                    Open <ArrowRight className="w-4 h-4" />
-                  </div>
-                </div>
-              </Card>
-            </motion.div>
-          ))}
+                </Card>
+              </motion.div>
+            )
+          })}
         </div>
         <div className="text-center mt-6">
-          <Button variant="ghost" size="sm" onClick={onLogout} className="text-slate-500">
+          <Button variant="ghost" size="sm" onClick={onLogout} className="text-slate-300 hover:text-white">
             Sign out
           </Button>
         </div>

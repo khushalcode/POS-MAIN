@@ -207,7 +207,7 @@ export default function KitchenMode({ onExit }: KitchenModeProps) {
   )
 
   return (
-    <div className="min-h-screen bg-slate-900 text-white">
+    <div className="min-h-screen img-bg text-white">
       <header className="sticky top-0 z-30 bg-slate-950/90 backdrop-blur-xl border-b border-slate-800">
         <div className="max-w-[1800px] mx-auto px-3 sm:px-4 md:px-6 py-2.5 sm:py-3 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">

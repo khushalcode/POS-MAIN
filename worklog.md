@@ -479,3 +479,45 @@ Stage Summary:
 - Supabase Realtime replaces socket.io for cross-device sync (works on any network)
 - .env.local created with user's Supabase credentials
 - Socket.io mini-service no longer required for sync (can keep for local fallback)
+
+---
+Task ID: image-bg-colors
+Agent: main
+Task: Restore per-card colors + add restaurant image backgrounds
+
+Work Log:
+- Copied 5 user-uploaded restaurant photos to public/ (bg-1.png through bg-5.png)
+- Added img-bg CSS class to globals.css:
+  - Fixed background image (bg-1.png) with cover sizing
+  - Dark gradient overlay (rgba(15,23,42,0.85)) for readability
+  - Glassmorphism support (.glass-card, .glass-dark)
+- Restored per-card color scheme:
+  - Direct Order: amber→orange→rose (featured with ⚡ Fast badge)
+  - Counter Mode: orange→rose
+  - Zomato Orders: rose→red (with "Zomato" badge)
+  - Kitchen Mode: emerald→teal
+  - Bills & History: violet→fuchsia
+  - Management: slate→slate-900
+- Redesigned landing page:
+  - Image background with dark overlay (warm, moody, professional)
+  - Glassmorphism header (bg-slate-900/70 backdrop-blur)
+  - White text on dark background with drop-shadow
+  - Per-card color gradients restored (each mode visually distinct)
+  - License badge, shop switcher, online status all styled for dark bg
+- Applied img-bg to all mode pages: Counter, Kitchen, History, Zomato, Management
+- Header on landing uses glassmorphism (semi-transparent dark with blur)
+- Cards maintain colored gradients on top of image background
+
+Verification:
+- ✓ App loads with restaurant photo background + dark overlay
+- ✓ All 6 mode cards have distinct colors (amber, orange, rose, emerald, violet, slate)
+- ✓ Glassmorphism header on dark background
+- ✓ White text with drop-shadow for readability
+- ✓ Background image URL confirmed: /bg-1.png loading
+- ✓ Lint passes cleanly
+
+Stage Summary:
+- Per-card colors restored (previous design the user liked)
+- Restaurant image backgrounds with warm dark overlay
+- Glassmorphism on header for professional look
+- All mode pages use image background

@@ -425,7 +425,7 @@ export default function CounterMode({ onExit, directMode }: CounterModeProps) {
     }
 
     return (
-      <div className="min-h-screen soft-bg">
+      <div className="min-h-screen img-bg">
         <Header onExit={onExit} role="counter" connected={sync.connected} />
         <main className="max-w-7xl mx-auto px-4 md:px-6 py-6">
           <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
@@ -470,7 +470,7 @@ export default function CounterMode({ onExit, directMode }: CounterModeProps) {
     (order.items || []).some((i) => i.status !== 'cancelled')
 
   return (
-    <div className="min-h-screen soft-bg flex flex-col">
+    <div className="min-h-screen img-bg flex flex-col">
       <Header onExit={closeTable} role="counter" connected={sync.connected} backLabel="Back to tables" />
 
       <main className="flex-1 max-w-7xl mx-auto w-full px-4 md:px-6 py-4 grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-4">
