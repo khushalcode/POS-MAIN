@@ -80,12 +80,19 @@ export default function ZomatoMode({ onExit }: ZomatoModeProps) {
     try {
       const res = await shopFetch('/api/zomato/sync', { method: 'POST' })
       const data = await res.json()
+      if (!res.ok) {
+        toast.error(data.error || 'Sync failed')
+        return
+      }
+      const modeLabel = data.mode === 'real' ? '🔴 LIVE' : '🟡 SIM'
       if (data.count > 0) {
-        toast.success(`Synced ${data.count} new order${data.count > 1 ? 's' : ''} from Zomato`)
+        toast.success(`${modeLabel} — Synced ${data.count} new order${data.count > 1 ? 's' : ''} from Zomato`)
       } else {
-        toast.info('No new orders from Zomato')
+        toast.info(`${modeLabel} — No new orders from Zomato`)
       }
       load()
+    } catch {
+      toast.error('Sync failed — check connection')
     } finally {
       setSyncing(false)
     }

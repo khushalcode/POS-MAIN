@@ -74,6 +74,12 @@ export async function PUT(req: NextRequest) {
       ...(b.kotHeaderAlign != null && { kotHeaderAlign: b.kotHeaderAlign }),
       ...(b.kotAccentColor != null && { kotAccentColor: b.kotAccentColor }),
       ...(b.kotExtraNote != null && { kotExtraNote: b.kotExtraNote || null }),
+      // Zomato API
+      ...(b.zomatoEnabled != null && { zomatoEnabled: b.zomatoEnabled }),
+      ...(b.zomatoApiKey !== undefined && { zomatoApiKey: b.zomatoApiKey || null }),
+      ...(b.zomatoRestaurantId !== undefined && { zomatoRestaurantId: b.zomatoRestaurantId || null }),
+      ...(b.zomatoApiBaseUrl !== undefined && { zomatoApiBaseUrl: b.zomatoApiBaseUrl || null }),
+      ...(b.zomatoWebhookSecret !== undefined && { zomatoWebhookSecret: b.zomatoWebhookSecret || null }),
     },
   })
   return NextResponse.json({ settings: updated })

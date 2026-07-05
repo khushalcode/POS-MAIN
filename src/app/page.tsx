@@ -281,78 +281,68 @@ function HomeScreen({ onSelect, daysLeft, onReactivate }: { onSelect: (m: Mode) 
         </motion.div>
       </section>
 
-      {/* Mode cards — redesigned: bigger, more visual, less boring */}
-      <section className="max-w-6xl mx-auto px-4 sm:px-6 pb-12 grid gap-4 sm:gap-5 md:grid-cols-3">
+      {/* Mode cards — compact, clean, professional */}
+      <section className="max-w-5xl mx-auto px-4 sm:px-6 pb-12 grid gap-3 sm:gap-4 md:grid-cols-3">
         {visibleModes.map((m, i) => {
           const colors = CARD_COLORS[m.key] || CARD_COLORS.counter
           return (
             <motion.div
               key={m.key}
-              initial={{ opacity: 0, y: 24, scale: 0.96 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              whileHover={{ y: -6 }}
-              transition={{ duration: 0.35, delay: 0.05 + i * 0.05, ease: [0.16, 1, 0.3, 1] }}
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              whileHover={{ y: -4 }}
+              transition={{ duration: 0.3, delay: 0.04 + i * 0.04 }}
               className={m.span}
             >
               <Card
                 onClick={() => onSelect(m.key)}
-                className={`group cursor-pointer relative overflow-hidden border-0 shadow-2xl ${colors.glow} transition-shadow duration-300 ${
-                  m.featured ? 'ring-2 ring-amber-400 ring-offset-2 ring-offset-slate-900' : ''
-                } ${m.span ? 'min-h-[200px]' : 'min-h-[220px]'}`}
+                className={`group cursor-pointer relative overflow-hidden border-0 shadow-lg ${colors.glow} transition-shadow duration-300 hover:shadow-xl ${
+                  m.featured ? 'ring-2 ring-amber-400/60 ring-offset-2 ring-offset-slate-900' : ''
+                } ${m.span ? 'min-h-[130px]' : 'min-h-[140px]'}`}
               >
-                {/* Gradient background */}
                 <div className={`absolute inset-0 bg-gradient-to-br ${colors.gradient} pointer-events-none`} />
-                {/* Decorative pattern */}
-                <div className="absolute inset-0 opacity-20 pointer-events-none" style={{
-                  backgroundImage: 'radial-gradient(circle at 20% 30%, white 1px, transparent 1px), radial-gradient(circle at 70% 60%, white 1px, transparent 1px)',
-                  backgroundSize: '40px 40px, 60px 60px',
+                <div className="absolute inset-0 opacity-15 pointer-events-none" style={{
+                  backgroundImage: 'radial-gradient(circle at 20% 30%, white 1px, transparent 1px)',
+                  backgroundSize: '30px 30px',
                 }} />
-                {/* Glow accent */}
-                <div className="absolute -top-12 -right-12 w-40 h-40 rounded-full bg-white/10 blur-2xl pointer-events-none" />
-                <div className="absolute -bottom-8 -left-8 w-32 h-32 rounded-full bg-black/10 blur-2xl pointer-events-none" />
+                <div className="absolute -top-8 -right-8 w-28 h-28 rounded-full bg-white/10 blur-2xl pointer-events-none" />
 
                 {m.featured && (
-                  <div className="absolute top-3 right-3 pointer-events-none z-10">
-                    <Badge className="bg-white text-orange-700 border-0 text-[10px] font-bold uppercase shadow-lg">⚡ Fast</Badge>
+                  <div className="absolute top-2 right-2 pointer-events-none z-10">
+                    <Badge className="bg-white text-orange-700 border-0 text-[9px] font-bold uppercase">⚡ Fast</Badge>
                   </div>
                 )}
                 {m.key === 'zomato' && (
-                  <div className="absolute top-3 right-3 pointer-events-none z-10">
-                    <Badge className="bg-white text-rose-700 border-0 text-[10px] font-bold uppercase shadow-lg">Zomato</Badge>
+                  <div className="absolute top-2 right-2 pointer-events-none z-10">
+                    <Badge className="bg-white text-rose-700 border-0 text-[9px] font-bold uppercase">Zomato</Badge>
                   </div>
                 )}
 
-                <div className={`relative p-5 sm:p-6 text-white h-full flex flex-col ${m.span ? 'md:flex-row md:items-center md:gap-6' : ''}`}>
-                  {/* Large icon with pulse */}
-                  <motion.div
-                    whileHover={{ scale: 1.1, rotate: -5 }}
-                    className={`w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-white/25 backdrop-blur-md flex items-center justify-center ring-1 ring-white/40 shadow-xl mb-4 ${m.span ? 'md:shrink-0 md:mb-0' : ''}`}
-                  >
-                    <m.icon className="w-8 h-8 sm:w-10 sm:h-10" strokeWidth={2.2} />
-                  </motion.div>
+                <div className={`relative p-4 text-white h-full flex flex-col ${m.span ? 'md:flex-row md:items-center md:gap-4' : ''}`}>
+                  <div className={`w-11 h-11 rounded-xl bg-white/25 backdrop-blur-sm flex items-center justify-center ring-1 ring-white/30 mb-2.5 ${m.span ? 'md:shrink-0 md:mb-0' : ''}`}>
+                    <m.icon className="w-5 h-5" strokeWidth={2.2} />
+                  </div>
 
                   <div className={m.span ? 'flex-1' : 'flex-1 flex flex-col'}>
-                    <h3 className={`font-extrabold mb-1 tracking-tight ${m.span ? 'text-2xl sm:text-3xl' : 'text-xl sm:text-2xl'}`}>
+                    <h3 className={`font-bold mb-0.5 tracking-tight ${m.span ? 'text-lg sm:text-xl' : 'text-base sm:text-lg'}`}>
                       {m.title}
                     </h3>
-                    <p className="text-xs sm:text-sm text-white/90 mb-3 leading-relaxed">{m.subtitle}</p>
+                    <p className="text-[11px] text-white/85 mb-2 line-clamp-1">{m.subtitle}</p>
 
-                    <div className="flex flex-wrap gap-1.5 mb-4">
-                      {m.tags.slice(0, m.span ? 6 : 4).map((t) => (
+                    <div className="flex flex-wrap gap-1 mb-2">
+                      {m.tags.slice(0, m.span ? 5 : 3).map((t) => (
                         <span
                           key={t}
-                          className="text-[10px] sm:text-[11px] font-semibold px-2 py-0.5 sm:py-1 rounded-full bg-white/20 backdrop-blur-sm ring-1 ring-white/30"
+                          className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-white/20 backdrop-blur-sm ring-1 ring-white/25"
                         >
                           {t}
                         </span>
                       ))}
                     </div>
 
-                    <div className="mt-auto flex items-center gap-2 text-sm font-bold">
-                      <span className="px-3 py-1.5 rounded-full bg-white/25 backdrop-blur-sm group-hover:bg-white/35 transition-colors flex items-center gap-1.5">
-                        Launch
-                        <ArrowRight className="w-4 h-4 group-hover:translate-x-1.5 transition-transform" />
-                      </span>
+                    <div className="mt-auto flex items-center gap-1 text-xs font-bold">
+                      Launch
+                      <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
                     </div>
                   </div>
                 </div>

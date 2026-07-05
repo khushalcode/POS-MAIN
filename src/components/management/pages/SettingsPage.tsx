@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import {
   Store, Receipt, Save, Loader2, RotateCcw, Palette, Type, Eye, EyeOff,
-  AlignLeft, AlignCenter, AlignRight, FileText, ChefHat,
+  AlignLeft, AlignCenter, AlignRight, FileText, ChefHat, Bike, Link as LinkIcon,
+  ShieldCheck, AlertCircle, Copy,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -64,6 +65,12 @@ export default function SettingsPage() {
     kotHeaderAlign: 'center',
     kotAccentColor: '#f97316',
     kotExtraNote: '',
+    // Zomato API
+    zomatoEnabled: false,
+    zomatoApiKey: '',
+    zomatoRestaurantId: '',
+    zomatoApiBaseUrl: 'https://www.zomato.com/partners/v1',
+    zomatoWebhookSecret: '',
   })
 
   useEffect(() => {
@@ -105,6 +112,11 @@ export default function SettingsPage() {
         kotHeaderAlign: data.settings.kotHeaderAlign || 'center',
         kotAccentColor: data.settings.kotAccentColor || '#f97316',
         kotExtraNote: data.settings.kotExtraNote || '',
+        zomatoEnabled: data.settings.zomatoEnabled ?? false,
+        zomatoApiKey: data.settings.zomatoApiKey || '',
+        zomatoRestaurantId: data.settings.zomatoRestaurantId || '',
+        zomatoApiBaseUrl: data.settings.zomatoApiBaseUrl || 'https://www.zomato.com/partners/v1',
+        zomatoWebhookSecret: data.settings.zomatoWebhookSecret || '',
       })
       setLoading(false)
     }
@@ -177,15 +189,18 @@ export default function SettingsPage() {
 
       {/* Tabs: Shop / Bill Style / KOT Style */}
       <Tabs defaultValue="shop" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="shop" className="text-xs sm:text-sm">
             <Store className="w-3.5 h-3.5 mr-1.5" /> Shop
           </TabsTrigger>
           <TabsTrigger value="bill" className="text-xs sm:text-sm">
-            <Receipt className="w-3.5 h-3.5 mr-1.5" /> Bill Style
+            <Receipt className="w-3.5 h-3.5 mr-1.5" /> Bill
           </TabsTrigger>
           <TabsTrigger value="kot" className="text-xs sm:text-sm">
-            <ChefHat className="w-3.5 h-3.5 mr-1.5" /> KOT Style
+            <ChefHat className="w-3.5 h-3.5 mr-1.5" /> KOT
+          </TabsTrigger>
+          <TabsTrigger value="zomato" className="text-xs sm:text-sm">
+            <Bike className="w-3.5 h-3.5 mr-1.5" /> Zomato
           </TabsTrigger>
         </TabsList>
 
@@ -468,6 +483,130 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        {/* Zomato API tab */}
+        <TabsContent value="zomato" className="mt-4">
+          <Card className="border-0 shadow-md rounded-2xl">
+            <CardHeader className="pb-3 px-5 pt-5">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-lg bg-rose-50">
+                  <Bike className="w-4 h-4 text-rose-600" />
+                </div>
+                <CardTitle className="text-sm font-semibold text-slate-900">Zomato Partner API</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent className="px-5 pb-5 space-y-4">
+              {/* Enable toggle */}
+              <div className="flex items-center justify-between p-3 rounded-lg bg-slate-50">
+                <div>
+                  <p className="text-sm font-semibold text-slate-900">Enable Real Zomato Integration</p>
+                  <p className="text-xs text-slate-500">When enabled, Sync button calls the real Zomato API instead of simulation</p>
+                </div>
+                <Switch checked={f.zomatoEnabled} onCheckedChange={(v) => setF({ ...f, zomatoEnabled: v })} />
+              </div>
+
+              {f.zomatoEnabled && (
+                <>
+                  {/* Status badge */}
+                  <div className={`flex items-center gap-2 p-3 rounded-lg text-xs ${
+                    f.zomatoApiKey && f.zomatoRestaurantId
+                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                      : 'bg-amber-50 text-amber-700 border border-amber-200'
+                  }`}>
+                    {f.zomatoApiKey && f.zomatoRestaurantId ? (
+                      <><ShieldCheck className="w-4 h-4" /> Configured — real Zomato orders will be fetched on Sync</>
+                    ) : (
+                      <><AlertCircle className="w-4 h-4" /> API Key and Restaurant ID required to use real integration</>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Zomato API Key</Label>
+                      <Input
+                        value={f.zomatoApiKey}
+                        onChange={(e) => setF({ ...f, zomatoApiKey: e.target.value })}
+                        placeholder="Bearer token from Zomato Partner Dashboard"
+                        className="font-mono text-xs"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Zomato Restaurant ID</Label>
+                      <Input
+                        value={f.zomatoRestaurantId}
+                        onChange={(e) => setF({ ...f, zomatoRestaurantId: e.target.value })}
+                        placeholder="Your restaurant ID on Zomato"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">API Base URL</Label>
+                      <Input
+                        value={f.zomatoApiBaseUrl}
+                        onChange={(e) => setF({ ...f, zomatoApiBaseUrl: e.target.value })}
+                        placeholder="https://www.zomato.com/partners/v1"
+                        className="font-mono text-xs"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Webhook Secret (optional)</Label>
+                      <Input
+                        value={f.zomatoWebhookSecret}
+                        onChange={(e) => setF({ ...f, zomatoWebhookSecret: e.target.value })}
+                        placeholder="Secret to verify incoming webhooks"
+                        className="font-mono text-xs"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Webhook URL */}
+                  <div className="space-y-1.5">
+                    <Label className="text-xs flex items-center gap-1">
+                      <LinkIcon className="w-3 h-3" /> Webhook URL (set this in Zomato Dashboard → Webhooks)
+                    </Label>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        readOnly
+                        value={`${typeof window !== 'undefined' ? window.location.origin : 'https://your-domain.com'}/api/zomato/webhook?shopId=${currentShop?.id || 'SHOP_ID'}${f.zomatoWebhookSecret ? `&secret=${f.zomatoWebhookSecret}` : ''}`}
+                        className="font-mono text-[10px] bg-slate-50"
+                      />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const url = `${window.location.origin}/api/zomato/webhook?shopId=${currentShop?.id || 'SHOP_ID'}${f.zomatoWebhookSecret ? `&secret=${f.zomatoWebhookSecret}` : ''}`
+                          navigator.clipboard.writeText(url)
+                          toast.success('Webhook URL copied')
+                        }}
+                      >
+                        <Copy className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Instructions */}
+                  <div className="p-3 rounded-lg bg-blue-50 border border-blue-200 text-xs text-blue-800 space-y-1">
+                    <p className="font-bold">Setup Instructions:</p>
+                    <p>1. Log in to <a href="https://partners.zomato.com" target="_blank" rel="noopener" className="underline">Zomato Partner Dashboard</a></p>
+                    <p>2. Get your API Key from Settings → API</p>
+                    <p>3. Find your Restaurant ID in Settings → Restaurant</p>
+                    <p>4. Set the Webhook URL (above) in Settings → Webhooks</p>
+                    <p>5. Save settings → click Sync in Zomato Orders to fetch real orders</p>
+                  </div>
+                </>
+              )}
+
+              {!f.zomatoEnabled && (
+                <div className="p-3 rounded-lg bg-slate-50 text-xs text-slate-500">
+                  Currently using <strong>simulation mode</strong> — sample orders are created on Sync.
+                  Enable real integration to fetch actual Zomato orders.
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>

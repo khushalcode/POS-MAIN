@@ -304,6 +304,13 @@ model ShopSetting {
   kotAccentColor    String   @default("#f97316")
   kotExtraNote      String?
 
+  // Zomato Partner API integration
+  zomatoEnabled    Boolean  @default(false)
+  zomatoApiKey     String?  // Zomato Partner API key / bearer token
+  zomatoRestaurantId String? // Zomato's restaurant ID for this shop
+  zomatoApiBaseUrl String?  // e.g. https://www.zomato.com/partners/v1
+  zomatoWebhookSecret String? // secret to verify incoming webhooks
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

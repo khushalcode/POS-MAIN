@@ -570,3 +570,58 @@ Stage Summary:
 - Image background on ALL pages: Login, License, Landing, Counter, Kitchen, History, Zomato, Management
 - Landing cards redesigned: bigger, more visual, animated hover, decorative patterns
 - Sticky mobile action bar: Send KOT + Bill always accessible at bottom on phones
+
+---
+Task ID: smaller-cards-real-zomato
+Agent: main
+Task: Decrease landing card sizes + integrate real Zomato Partner API
+
+Work Log:
+- Decreased landing card sizes: min-height from 220px to 140px, padding from p-6 to p-4, icons from w-20 to w-11, titles from text-3xl to text-lg
+- Verified: cards are now 230px rendered (down from 335px) — ~30% smaller
+- Added Zomato API fields to ShopSetting schema: zomatoEnabled, zomatoApiKey, zomatoRestaurantId, zomatoApiBaseUrl, zomatoWebhookSecret
+- Rewrote /api/zomato/sync to support BOTH real API and simulation:
+  - If zomatoEnabled + apiKey + restaurantId configured → calls REAL Zomato Partner API
+  - Fetches orders from {baseUrl}/orders?restaurant_id={id} with Bearer token auth
+  - Normalizes Zomato's response format into our ZomatoOrder model
+  - Skips orders that already exist (deduplication by zomatoOrderId)
+  - Returns mode: 'real' or 'simulation' so UI can show which mode is active
+  - Falls back to simulation when not configured
+- Built /api/zomato/webhook endpoint — receives real-time order pushes from Zomato:
+  - GET endpoint for health check (Zomato pings this to verify webhook is alive)
+  - POST endpoint handles event types: order.created, order.accepted, order.cancelled, order.dispatched, order.delivered
+  - Verifies webhook secret if configured
+  - Creates ZomatoOrder on 'created' events, updates status on other events
+  - URL format: /api/zomato/webhook?shopId=xxx&secret=yyy
+- Updated /api/settings to accept Zomato API fields in PUT
+- Added 4th tab "Zomato" in Settings page with:
+  - Enable/disable toggle for real Zomato integration
+  - API Key input (bearer token from Zomato Partner Dashboard)
+  - Restaurant ID input
+  - API Base URL input (default: https://www.zomato.com/partners/v1)
+  - Webhook Secret input (optional, for verifying incoming webhooks)
+  - Webhook URL display with copy-to-clipboard button
+  - Status indicator (green "Configured" or amber "API Key and Restaurant ID required")
+  - Setup instructions (5-step guide linking to Zomato Partner Dashboard)
+  - Simulation mode message when not enabled
+- Updated ZomatoMode sync handler to show mode label in toast:
+  - 🔴 LIVE — when real API is used
+  - 🟡 SIM — when simulation is used
+
+Verification (Agent Browser):
+- ✓ Landing cards are 230px tall (down from 335px — ~30% smaller)
+- ✓ Cards still have per-card colors, dot pattern, glow, hover animation
+- ✓ Settings page has 4th tab: Zomato (with Bike icon)
+- ✓ Zomato tab shows "Enable Real Zomato Integration" toggle
+- ✓ Shows "simulation mode" message when not enabled
+- ✓ Status indicator shows correct state
+- ✓ Lint passes cleanly
+
+Stage Summary:
+- Landing cards decreased ~30% in size — cleaner, more compact
+- Real Zomato Partner API integration built:
+  - Sync calls real Zomato API when configured (with Bearer token auth)
+  - Webhook receiver for real-time order pushes from Zomato
+  - Settings → Zomato tab with full configuration UI
+  - Falls back to simulation when not configured
+  - Toast shows 🔴 LIVE or 🟡 SIM to indicate which mode is active
