@@ -1,24 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { isValidKey } from '@/lib/license-keys'
 
-// POST /api/license/validate — check if a key is valid (not used, exists)
-// Body: { key: string }
+/**
+ * POST /api/license/validate
+ * Checks if a key is valid. Uses hardcoded list — works on Vercel.
+ */
 export async function POST(req: NextRequest) {
   const { key } = await req.json()
   if (!key) return NextResponse.json({ error: 'Key required' }, { status: 400 })
 
-  const normalized = key.trim().toUpperCase()
-  const licenseKey = await db.licenseKey.findUnique({ where: { key: normalized } })
-
-  if (!licenseKey) {
-    return NextResponse.json({ valid: false, reason: 'invalid_key' })
-  }
-  if (licenseKey.used) {
-    return NextResponse.json({ valid: false, reason: 'already_used' })
+  const result = isValidKey(key)
+  if (!result.valid) {
+    return NextResponse.json({ valid: false, reason: result.reason })
   }
   return NextResponse.json({
     valid: true,
-    duration: licenseKey.duration,
-    durationLabel: `${licenseKey.duration} day${licenseKey.duration > 1 ? 's' : ''}`,
+    duration: result.duration,
+    durationLabel: `${result.duration} day${result.duration > 1 ? 's' : ''}`,
   })
 }

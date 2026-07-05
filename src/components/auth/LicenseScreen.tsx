@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  Key, Loader2, CheckCircle2, AlertCircle, ShieldCheck, Clock, Sparkles,
+  Key, Loader2, CheckCircle2, AlertCircle, ShieldCheck, Clock,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -62,6 +62,12 @@ export function LicenseActivationScreen({ onActivated }: LicenseActivationScreen
         setError(data.error || 'Activation failed')
         return
       }
+      // Store activation in localStorage (critical for Vercel where DB resets)
+      localStorage.setItem('servingsync-license', JSON.stringify({
+        key: key.trim().toUpperCase(),
+        activatedAt: data.activatedAt,
+        expiresAt: data.expiresAt,
+      }))
       toast.success(`License activated! Valid for ${data.daysLeft} days.`)
       onActivated()
     } catch (e: any) {
@@ -69,10 +75,6 @@ export function LicenseActivationScreen({ onActivated }: LicenseActivationScreen
     } finally {
       setLoading(false)
     }
-  }
-
-  const fillDemo = (demoKey: string) => {
-    setKey(demoKey)
   }
 
   return (
@@ -177,18 +179,6 @@ export function LicenseActivationScreen({ onActivated }: LicenseActivationScreen
               )}
             </Button>
           </div>
-
-          {/* Demo keys */}
-          <div className="mt-5 pt-5 border-t border-slate-700">
-            <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1">
-              <Sparkles className="w-3 h-3" /> Demo keys (tap to fill)
-            </p>
-            <div className="space-y-1">
-              <DemoKey label="1 Year License" code="SSYNC-DEMO-2025-365" onClick={fillDemo} />
-              <DemoKey label="30 Days" code="SSYNC-DEMO-2025-030" onClick={fillDemo} />
-              <DemoKey label="7 Days" code="SSYNC-DEMO-2025-007" onClick={fillDemo} />
-            </div>
-          </div>
         </Card>
 
         <div className="mt-4 flex items-center justify-center gap-4 text-[10px] text-slate-500">
@@ -197,18 +187,6 @@ export function LicenseActivationScreen({ onActivated }: LicenseActivationScreen
         </div>
       </motion.div>
     </div>
-  )
-}
-
-function DemoKey({ label, code, onClick }: { label: string; code: string; onClick: (c: string) => void }) {
-  return (
-    <button
-      onClick={() => onClick(code)}
-      className="w-full flex items-center justify-between px-3 py-1.5 rounded-lg bg-slate-900/60 hover:bg-slate-900 border border-slate-700 text-left transition-colors"
-    >
-      <span className="text-[10px] text-slate-400">{label}</span>
-      <span className="text-[10px] font-mono text-orange-400">{code}</span>
-    </button>
   )
 }
 
@@ -260,6 +238,32 @@ export function useLicenseCheck() {
 
   useEffect(() => {
     const check = async () => {
+      // FIRST: check localStorage (works on Vercel where DB resets)
+      try {
+        const localActivation = localStorage.getItem('servingsync-license')
+        if (localActivation) {
+          const parsed = JSON.parse(localActivation)
+          const expiry = new Date(parsed.expiresAt)
+          if (expiry > new Date()) {
+            // Valid local activation
+            const remaining = Math.ceil((expiry.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+            setStatus('active')
+            setExpiresAt(parsed.expiresAt)
+            setDaysLeft(remaining)
+            return
+          } else {
+            // Expired
+            setStatus('expired')
+            setExpiresAt(parsed.expiresAt)
+            localStorage.removeItem('servingsync-license')
+            return
+          }
+        }
+      } catch {
+        // localStorage not available or corrupt — fall through to API check
+      }
+
+      // SECOND: check server-side DB (works on local/Electron)
       try {
         const res = await fetch('/api/license/status')
         const data = await res.json()
@@ -267,6 +271,12 @@ export function useLicenseCheck() {
           setStatus('active')
           setExpiresAt(data.expiresAt)
           setDaysLeft(data.daysLeft)
+          // Also save to localStorage for Vercel persistence
+          localStorage.setItem('servingsync-license', JSON.stringify({
+            key: 'db-activated',
+            activatedAt: data.activatedAt,
+            expiresAt: data.expiresAt,
+          }))
         } else if (data.reason === 'expired') {
           setStatus('expired')
           setExpiresAt(data.expiresAt)
@@ -280,5 +290,27 @@ export function useLicenseCheck() {
     check()
   }, [])
 
-  return { status, expiresAt, daysLeft, recheck: () => setStatus('loading') }
+  const recheck = () => {
+    setStatus('loading')
+    // Re-run the check
+    setTimeout(() => {
+      const localActivation = localStorage.getItem('servingsync-license')
+      if (localActivation) {
+        try {
+          const parsed = JSON.parse(localActivation)
+          const expiry = new Date(parsed.expiresAt)
+          if (expiry > new Date()) {
+            const remaining = Math.ceil((expiry.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+            setStatus('active')
+            setExpiresAt(parsed.expiresAt)
+            setDaysLeft(remaining)
+            return
+          }
+        } catch {}
+      }
+      setStatus('not_activated')
+    }, 100)
+  }
+
+  return { status, expiresAt, daysLeft, recheck }
 }

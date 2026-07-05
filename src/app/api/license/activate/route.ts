@@ -1,52 +1,60 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { isValidKey } from '@/lib/license-keys'
 import { db } from '@/lib/db'
 
-// POST /api/license/activate — activate a license key on this machine
-// Body: { key: string, machineId?: string }
+/**
+ * POST /api/license/activate
+ * Activates a license key. Returns activation details.
+ * Stores activation in DB (if available) — on Vercel, the DB may not persist,
+ * but the client also stores activation in localStorage as a fallback.
+ */
 export async function POST(req: NextRequest) {
-  const { key, machineId } = await req.json()
+  const { key } = await req.json()
   if (!key) return NextResponse.json({ error: 'Key required' }, { status: 400 })
 
   const normalized = key.trim().toUpperCase()
-  const licenseKey = await db.licenseKey.findUnique({ where: { key: normalized } })
+  const result = isValidKey(normalized)
 
-  if (!licenseKey) {
+  if (!result.valid) {
     return NextResponse.json({ error: 'Invalid license key' }, { status: 400 })
   }
-  if (licenseKey.used) {
-    return NextResponse.json({ error: 'This license key has already been used' }, { status: 400 })
-  }
-
-  // Check if there's already an activation (replace it)
-  const existing = await db.licenseActivation.findFirst()
 
   const now = new Date()
   const expiresAt = new Date(now)
-  expiresAt.setDate(expiresAt.getDate() + licenseKey.duration)
+  expiresAt.setDate(expiresAt.getDate() + result.duration)
 
-  // Transaction: mark key as used + create activation
-  const activation = await db.$transaction(async (tx) => {
-    await tx.licenseKey.update({
-      where: { id: licenseKey.id },
-      data: { used: true },
-    })
-    if (existing) {
-      await tx.licenseActivation.delete({ where: { id: existing.id } })
+  // Try to store in DB (works on local/Electron; may not persist on Vercel)
+  try {
+    // Mark key as used in DB if it exists
+    const dbKey = await db.licenseKey.findUnique({ where: { key: normalized } })
+    if (dbKey && !dbKey.used) {
+      await db.licenseKey.update({
+        where: { id: dbKey.id },
+        data: { used: true },
+      })
     }
-    return tx.licenseActivation.create({
+
+    // Store activation in DB
+    const existing = await db.licenseActivation.findFirst()
+    if (existing) {
+      await db.licenseActivation.delete({ where: { id: existing.id } })
+    }
+    await db.licenseActivation.create({
       data: {
         key: normalized,
         activatedAt: now,
         expiresAt,
-        machineId: machineId || null,
       },
     })
-  })
+  } catch {
+    // DB might not be available on Vercel — that's OK
+    // Client will store activation in localStorage
+  }
 
   return NextResponse.json({
     active: true,
-    activatedAt: activation.activatedAt,
-    expiresAt: activation.expiresAt,
-    daysLeft: licenseKey.duration,
+    activatedAt: now.toISOString(),
+    expiresAt: expiresAt.toISOString(),
+    daysLeft: result.duration,
   })
 }
