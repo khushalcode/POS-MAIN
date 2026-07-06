@@ -5,21 +5,20 @@ import { db } from '@/lib/db'
  * GET /api/auto-seed
  *
  * Automatically seeds the database on first launch.
- * This fixes the "Unexpected end of JSON input" error that happens when
- * a fresh device has an empty database and login fails.
- *
- * This endpoint is called automatically by the app on startup.
- * If data already exists, it does nothing (idempotent).
+ * If data already exists (e.g. user ran SQL migration in Supabase), does nothing.
+ * If database is empty, seeds all data.
  */
 export async function GET() {
   try {
-    const shopCount = await db.shop.count()
+    // Check if shops already exist
+    const shopCount = await db.shop.count().catch(() => 0)
     if (shopCount > 0) {
-      return NextResponse.json({ seeded: false, message: 'Database already has data' })
+      return NextResponse.json({ seeded: false, message: 'Database already has data', shops: shopCount })
     }
 
     console.log('[auto-seed] Database is empty — seeding...')
 
+    // ─── Seed shops ───
     const shop1 = await db.shop.create({
       data: {
         name: 'Spice Garden', code: 'SPICE', color: 'orange',
@@ -35,6 +34,7 @@ export async function GET() {
       },
     })
 
+    // ─── Seed shop settings ───
     for (const shop of [shop1, shop2]) {
       await db.shopSetting.create({
         data: {
@@ -44,12 +44,14 @@ export async function GET() {
           kotAccentColor: shop.color === 'orange' ? '#f97316' : '#10b981',
         },
       })
+      // ─── Seed tables ───
       await db.restaurantTable.create({ data: { shopId: shop.id, number: 0, name: 'Direct Counter', capacity: 0, status: 'available' } })
       for (let i = 1; i <= 10; i++) {
         await db.restaurantTable.create({ data: { shopId: shop.id, number: i, name: `Table ${i}`, capacity: 4, status: 'available' } })
       }
     }
 
+    // ─── Seed menu items ───
     const MENU = [
       { name: 'Maha Jumbo Sandwich', category: 'Sandwich', price: 150 }, { name: 'Cheese Chutney Sandwich', category: 'Sandwich', price: 90 },
       { name: 'Ultimate Cheese Burst Pizza', category: 'Pizza', price: 250 }, { name: 'Royal Paneer Tandoori Pizza', category: 'Pizza', price: 200 },
@@ -76,14 +78,16 @@ export async function GET() {
       }
     }
 
+    // ─── Seed super admin ───
     const existingUser = await db.appUser.findUnique({ where: { email: 'super@servingsync.com' } })
     if (!existingUser) {
       await db.appUser.create({ data: { name: 'Super Admin', email: 'super@servingsync.com', password: 'admin123', role: 'admin', shopId: null } })
     }
 
+    // ─── Seed license keys ───
     const KEYS = ['SSYNC-PVKN-9U9R-HDCR','SSYNC-L2U4-6QND-DZ2D','SSYNC-QNQG-25HG-LMXK','SSYNC-4GTM-DJ4T-TQ5H','SSYNC-VZ4Y-7XAD-6JJF','SSYNC-3H2E-RUFH-5YEE','SSYNC-EPNX-49ZJ-ZUNP','SSYNC-CQ26-NQ4P-EXHG','SSYNC-NYM5-UHGD-257M','SSYNC-8E6P-CPJ8-SH6Q','SSYNC-CW5J-CJY2-4N35','SSYNC-DV2E-YNQB-UESS','SSYNC-RW8Y-2X3R-QAK5','SSYNC-YX9E-VAFG-A438','SSYNC-YBBG-AWF4-8SJB','SSYNC-JLFC-KR6V-7HE3','SSYNC-L2XC-NJMB-U7EG','SSYNC-H36K-RD2Y-5XGW','SSYNC-JFF9-N789-YGJ2','SSYNC-3PAZ-HBEE-WAYR']
     for (const key of KEYS) {
-      const existing = await db.licenseKey.findUnique({ where: { key } })
+      const existing = await db.licenseKey.findUnique({ where: { key } }).catch(() => null)
       if (!existing) await db.licenseKey.create({ data: { key, duration: 365 } })
     }
 

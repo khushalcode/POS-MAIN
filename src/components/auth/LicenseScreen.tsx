@@ -135,12 +135,18 @@ export function LicenseActivationScreen({ onActivated }: LicenseActivationScreen
                     {preview.valid ? (
                       <div className="flex items-center gap-1.5 text-xs text-emerald-400">
                         <CheckCircle2 className="w-3.5 h-3.5" />
-                        Valid key — {preview.duration} days of access
+                        {preview.alreadyActivated
+                          ? `Already active — ${preview.daysLeft} days left`
+                          : `Valid key — ${preview.duration} days of access`}
                       </div>
                     ) : (
                       <div className="flex items-center gap-1.5 text-xs text-rose-400">
                         <AlertCircle className="w-3.5 h-3.5" />
-                        {preview.reason === 'already_used' ? 'This key has already been used' : 'Invalid key'}
+                        {preview.reason === 'already_used'
+                          ? 'This key has already been used on another device'
+                          : preview.reason === 'expired'
+                          ? 'This license key has expired'
+                          : 'Invalid key'}
                       </div>
                     )}
                   </motion.div>
