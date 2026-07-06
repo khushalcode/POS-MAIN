@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label'
 import { Card } from '@/components/ui/card'
 import { toast } from 'sonner'
 import { useSession, type SessionUser, type Shop } from '@/lib/session'
+import { apiUrl } from '@/lib/api-config'
 
 interface LoginScreenProps {
   onLoggedOut: () => void
@@ -30,7 +31,7 @@ export function LoginScreen({ onLoggedOut }: LoginScreenProps) {
     setError('')
     setLoading(true)
     try {
-      const res = await fetch('/api/auth/login', {
+      const res = await fetch(apiUrl('/api/auth/login'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),

@@ -15,6 +15,7 @@ import { LoginScreen } from '@/components/auth/LoginScreen'
 import { LicenseActivationScreen, LicenseExpiredScreen, useLicenseCheck } from '@/components/auth/LicenseScreen'
 import { GlobalShortcutBar } from '@/components/shared/GlobalShortcutBar'
 import { useShopFetch } from '@/hooks/use-shop-fetch'
+import { apiUrl } from '@/lib/api-config'
 import CounterMode from '@/components/counter/CounterMode'
 import KitchenMode from '@/components/kitchen/KitchenMode'
 import HistoryMode from '@/components/history/HistoryMode'
@@ -33,9 +34,8 @@ export default function Home() {
   const [showLicenseScreen, setShowLicenseScreen] = useState(false)
 
   // ─── Auto-seed database on first launch ───
-  // This fixes "Unexpected end of JSON input" on fresh devices
   useEffect(() => {
-    fetch('/api/auto-seed').catch(() => {})
+    fetch(apiUrl('/api/auto-seed')).catch(() => {})
   }, [])
 
   useEffect(() => {

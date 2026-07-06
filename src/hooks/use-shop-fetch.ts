@@ -2,11 +2,13 @@
 
 import { useCallback } from 'react'
 import { useSession } from '@/lib/session'
+import { apiUrl } from '@/lib/api-config'
 
 /**
  * useShopFetch
- * Returns a stable fetch wrapper that automatically adds the X-Shop-Id header
- * for all multi-shop API calls. Re-created only when shopId changes.
+ * Returns a stable fetch wrapper that:
+ * 1. Adds X-Shop-Id header for multi-shop filtering
+ * 2. Uses apiUrl() so it works on APK (points to hosted server)
  */
 export function useShopFetch() {
   const { currentShop } = useSession()
@@ -19,7 +21,7 @@ export function useShopFetch() {
       if (options.body && !headers.has('Content-Type')) {
         headers.set('Content-Type', 'application/json')
       }
-      return fetch(url, { ...options, headers })
+      return fetch(apiUrl(url), { ...options, headers })
     },
     [shopId]
   )

@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card } from '@/components/ui/card'
+import { apiUrl } from '@/lib/api-config'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
 
@@ -32,7 +33,7 @@ export function LicenseActivationScreen({ onActivated }: LicenseActivationScreen
     const t = setTimeout(async () => {
       setValidating(true)
       try {
-        const res = await fetch('/api/license/validate', {
+        const res = await fetch(apiUrl('/api/license/validate'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ key }),
@@ -52,7 +53,7 @@ export function LicenseActivationScreen({ onActivated }: LicenseActivationScreen
     setError('')
     setLoading(true)
     try {
-      const res = await fetch('/api/license/activate', {
+      const res = await fetch(apiUrl('/api/license/activate'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key }),
@@ -271,7 +272,7 @@ export function useLicenseCheck() {
 
       // SECOND: check server-side DB (works on local/Electron)
       try {
-        const res = await fetch('/api/license/status')
+        const res = await fetch(apiUrl('/api/license/status'))
         const data = await res.json()
         if (data.active) {
           setStatus('active')
