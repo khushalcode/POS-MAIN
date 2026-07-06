@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { getSupabase, shopChannel } from '@/lib/supabase'
 import { useSession } from '@/lib/session'
+import { syncQueue } from '@/lib/client-data'
 import type {
   KOTPayload,
   ItemStatusPayload,
@@ -148,26 +149,32 @@ export function useRestaurantSync(role: Role, handlers: Handlers) {
   const sendKOT = useCallback((p: KOTPayload) => {
     socketRef.current?.emit('kot:new', p)
     supabaseChannelRef.current?.send({ type: 'broadcast', event: 'kot:new', payload: p })
+    try { syncQueue.add('kot:new', p) } catch {}
   }, [])
   const sendItemAdded = useCallback((p: KOTPayload) => {
     socketRef.current?.emit('kot:item-added', p)
     supabaseChannelRef.current?.send({ type: 'broadcast', event: 'kot:item-added', payload: p })
+    try { syncQueue.add('kot:item-added', p) } catch {}
   }, [])
   const sendItemStatus = useCallback((p: ItemStatusPayload) => {
     socketRef.current?.emit('item:status', p)
     supabaseChannelRef.current?.send({ type: 'broadcast', event: 'item:status', payload: p })
+    try { syncQueue.add('item:status', p) } catch {}
   }, [])
   const sendOrderStatus = useCallback((p: OrderStatusPayload) => {
     socketRef.current?.emit('order:status', p)
     supabaseChannelRef.current?.send({ type: 'broadcast', event: 'order:status', payload: p })
+    try { syncQueue.add('order:status', p) } catch {}
   }, [])
   const sendTableReleased = useCallback((p: TablePayload) => {
     socketRef.current?.emit('table:released', p)
     supabaseChannelRef.current?.send({ type: 'broadcast', event: 'table:released', payload: p })
+    try { syncQueue.add('table:released', p) } catch {}
   }, [])
   const sendTableOccupied = useCallback((p: TablePayload) => {
     socketRef.current?.emit('table:occupied', p)
     supabaseChannelRef.current?.send({ type: 'broadcast', event: 'table:occupied', payload: p })
+    try { syncQueue.add('table:occupied', p) } catch {}
   }, [])
   const requestDataRefresh = useCallback((p?: unknown) => {
     socketRef.current?.emit('data:refresh', p || {})

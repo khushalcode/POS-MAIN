@@ -465,3 +465,26 @@ VALUES
 -- ═══════════════════════════════════════════════════════════════
 -- DONE! All tables created and seeded.
 -- ═══════════════════════════════════════════════════════════════
+
+-- ═══════════════════════════════════════════════════════════════
+-- KOT EVENTS TABLE (for cross-device sync via Supabase Realtime)
+-- ═══════════════════════════════════════════════════════════════
+-- This is the ONLY table that stores data in Supabase.
+-- All other data stays in local SQLite on each device.
+-- Kitchen devices subscribe to this table via Realtime.
+
+CREATE TABLE IF NOT EXISTS kot_events (
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    event_type TEXT NOT NULL,
+    payload JSONB NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Enable Row Level Security (allow public read/insert for now)
+ALTER TABLE kot_events ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow public read" ON kot_events FOR SELECT USING (true);
+CREATE POLICY "Allow public insert" ON kot_events FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public update" ON kot_events FOR UPDATE USING (true);
+
+-- Enable Realtime on this table
+ALTER PUBLICATION supabase_realtime ADD TABLE kot_events;

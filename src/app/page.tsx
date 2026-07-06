@@ -15,7 +15,7 @@ import { LoginScreen } from '@/components/auth/LoginScreen'
 import { LicenseActivationScreen, LicenseExpiredScreen, useLicenseCheck } from '@/components/auth/LicenseScreen'
 import { GlobalShortcutBar } from '@/components/shared/GlobalShortcutBar'
 import { useShopFetch } from '@/hooks/use-shop-fetch'
-import { apiUrl } from '@/lib/api-config'
+import { startSyncManager } from '@/lib/sync-manager'
 import CounterMode from '@/components/counter/CounterMode'
 import KitchenMode from '@/components/kitchen/KitchenMode'
 import HistoryMode from '@/components/history/HistoryMode'
@@ -33,9 +33,9 @@ export default function Home() {
   const [mode, setMode] = useState<Mode>('home')
   const [showLicenseScreen, setShowLicenseScreen] = useState(false)
 
-  // ─── Auto-seed database on first launch ───
+  // ─── Start sync manager (drains outbox to Supabase when online) ───
   useEffect(() => {
-    fetch(apiUrl('/api/auto-seed')).catch(() => {})
+    startSyncManager()
   }, [])
 
   useEffect(() => {
