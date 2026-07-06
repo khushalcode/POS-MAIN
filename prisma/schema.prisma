@@ -1,12 +1,12 @@
 // Restaurant POS System — Prisma schema
-// SQLite for offline-first local storage. Multi-shop aware.
+// Supabase PostgreSQL for cloud database (works with APK, Vercel, etc.)
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
