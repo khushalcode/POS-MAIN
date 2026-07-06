@@ -1,12 +1,13 @@
 // Restaurant POS System — Prisma schema
-// Supabase PostgreSQL — works on Vercel, APK, and all hosted platforms.
+// OFFLINE-FIRST: SQLite on device for ALL data.
+// Supabase Realtime used ONLY for cross-device event sync (kitchen screen).
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
