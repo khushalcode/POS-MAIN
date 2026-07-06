@@ -30,6 +30,7 @@ import { BillingDialog } from './BillingDialog'
 import { PrintPreview } from '@/components/shared/PrintPreview'
 import { KOTReceipt } from '@/components/shared/Receipts'
 import { PendingOrdersSubTab } from '@/components/shared/PendingOrdersSubTab'
+import { GlobalShortcutBar as GlobalShortcutBarInline } from '@/components/shared/GlobalShortcutBar'
 import { useRestaurantSync } from '@/hooks/use-restaurant-sync'
 import { useShopFetch } from '@/hooks/use-shop-fetch'
 import { useSession } from '@/lib/session'
@@ -42,11 +43,12 @@ import type { RestaurantTable, Order, OrderItem, MenuItem, KOTPayload, ItemStatu
 
 interface CounterModeProps {
   onExit: () => void
-  /** Skip the table grid and jump straight to a direct/takeaway order */
   directMode?: boolean
+  currentMode?: string
+  onNavigate?: (mode: any) => void
 }
 
-export default function CounterMode({ onExit, directMode }: CounterModeProps) {
+export default function CounterMode({ onExit, directMode, currentMode, onNavigate }: CounterModeProps) {
   const { currentShop, user } = useSession()
   const shopFetch = useShopFetch()
   const [tables, setTables] = useState<RestaurantTable[]>([])
@@ -522,7 +524,7 @@ export default function CounterMode({ onExit, directMode }: CounterModeProps) {
 
     return (
       <div className="min-h-screen img-bg">
-        <Header onExit={onExit} role="counter" connected={sync.connected} />
+        <Header onExit={onExit} role="counter" connected={sync.connected} currentMode={currentMode} onNavigate={onNavigate} />
         <main className="max-w-7xl mx-auto px-4 md:px-6 py-6">
           <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
             <div>
@@ -567,7 +569,7 @@ export default function CounterMode({ onExit, directMode }: CounterModeProps) {
 
   return (
     <div className="min-h-screen img-bg flex flex-col">
-      <Header onExit={closeTable} role="counter" connected={sync.connected} backLabel="Back to tables" />
+      <Header onExit={closeTable} role="counter" connected={sync.connected} backLabel="Back to tables" currentMode={currentMode} onNavigate={onNavigate} />
 
       <main className="flex-1 max-w-7xl mx-auto w-full px-4 md:px-6 py-4 grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-4">
         {/* Left: Menu picker */}
@@ -834,11 +836,15 @@ function Header({
   role,
   connected,
   backLabel = 'Exit',
+  currentMode,
+  onNavigate,
 }: {
   onExit: () => void
   role: 'counter' | 'kitchen' | 'history'
   connected: boolean
   backLabel?: string
+  currentMode?: string
+  onNavigate?: (mode: any) => void
 }) {
   const { currentShop, user, shops, selectShop, logout } = useSession()
   const labels = {
@@ -854,11 +860,15 @@ function Header({
           <Button variant="ghost" size="sm" onClick={onExit} className="shrink-0">
             <ArrowLeft className="w-4 h-4 mr-1" /> <span className="hidden sm:inline">{backLabel}</span>
           </Button>
+          {/* Inline shortcut bar — between back button and sign out */}
+          {onNavigate && currentMode && (
+            <GlobalShortcutBarInline currentMode={currentMode as any} onNavigate={onNavigate} />
+          )}
           <div className="hidden md:block w-px h-6 bg-slate-200" />
           <div className={`hidden md:flex w-9 h-9 rounded-xl ${l.color} items-center justify-center`}>
             <l.icon className="w-5 h-5 text-white" />
           </div>
-          <div className="min-w-0">
+          <div className="min-w-0 hidden md:block">
             <h2 className="text-sm font-bold text-slate-900 truncate">{l.title}</h2>
             <p className="text-[10px] text-slate-500 flex items-center gap-1">
               {connected ? '● Live' : '○ Reconnecting'}

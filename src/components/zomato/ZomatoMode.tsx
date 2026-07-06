@@ -18,6 +18,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from 'sonner'
 import { useShopFetch } from '@/hooks/use-shop-fetch'
 import { useSession } from '@/lib/session'
+import { GlobalShortcutBar as GlobalShortcutBarInline } from '@/components/shared/GlobalShortcutBar'
 import { formatCurrency, formatDateTime, timeAgo } from '@/lib/format'
 import type { ZomatoOrder, ZomatoStatus } from '@/lib/types'
 
@@ -43,9 +44,11 @@ const STATUS_COLORS: Record<ZomatoStatus, string> = {
 
 interface ZomatoModeProps {
   onExit: () => void
+  currentMode?: string
+  onNavigate?: (mode: any) => void
 }
 
-export default function ZomatoMode({ onExit }: ZomatoModeProps) {
+export default function ZomatoMode({ onExit, currentMode, onNavigate }: ZomatoModeProps) {
   const { user, shops, currentShop, selectShop, logout } = useSession()
   const shopFetch = useShopFetch()
   const [orders, setOrders] = useState<ZomatoOrder[]>([])
@@ -165,6 +168,10 @@ export default function ZomatoMode({ onExit }: ZomatoModeProps) {
             <Button variant="ghost" size="sm" onClick={onExit} className="shrink-0">
               <ArrowLeft className="w-4 h-4 mr-1" /> <span className="hidden sm:inline">Exit</span>
             </Button>
+            {/* Inline shortcut bar */}
+            {onNavigate && currentMode && (
+              <GlobalShortcutBarInline currentMode={currentMode as any} onNavigate={onNavigate} inline />
+            )}
             <div className="w-9 h-9 rounded-xl bg-brand-gradient flex items-center justify-center shadow-lg shrink-0">
               <Bike className="w-5 h-5 text-white" />
             </div>

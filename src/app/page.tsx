@@ -81,12 +81,12 @@ export default function Home() {
   const allowedModes = user.role === 'admin' ? ADMIN_MODES : ADMIN_MODES.filter((m) => m !== 'management')
 
   if (mode !== 'home' && allowedModes.includes(mode)) {
-    if (mode === 'counter') return <CounterMode onExit={backHome} />
-    if (mode === 'kitchen') return <KitchenMode onExit={backHome} />
-    if (mode === 'history') return <HistoryMode onExit={backHome} />
-    if (mode === 'management') return <ManagementMode onExit={backHome} />
-    if (mode === 'direct') return <CounterMode onExit={backHome} directMode />
-    if (mode === 'zomato') return <ZomatoMode onExit={backHome} />
+    if (mode === 'counter') return <CounterMode onExit={backHome} currentMode="counter" onNavigate={enterMode} />
+    if (mode === 'kitchen') return <KitchenMode onExit={backHome} currentMode="kitchen" onNavigate={enterMode} />
+    if (mode === 'history') return <HistoryMode onExit={backHome} currentMode="history" onNavigate={enterMode} />
+    if (mode === 'management') return <ManagementMode onExit={backHome} currentMode="management" onNavigate={enterMode} />
+    if (mode === 'direct') return <CounterMode onExit={backHome} directMode currentMode="direct" onNavigate={enterMode} />
+    if (mode === 'zomato') return <ZomatoMode onExit={backHome} currentMode="zomato" onNavigate={enterMode} />
   }
 
   return <HomeScreen mode={mode} onSelect={enterMode} daysLeft={daysLeft} onReactivate={() => setShowLicenseScreen(true)} />

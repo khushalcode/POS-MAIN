@@ -24,9 +24,12 @@ import { useShopFetch } from '@/hooks/use-shop-fetch'
 import { useSession } from '@/lib/session'
 import { formatTime, timeAgo, ITEM_STATUS_LABELS, ITEM_STATUS_COLORS } from '@/lib/format'
 import type { Order, OrderItem, KOTPayload, ItemStatusPayload } from '@/lib/types'
+import { GlobalShortcutBar as GlobalShortcutBarInline } from '@/components/shared/GlobalShortcutBar'
 
 interface KitchenModeProps {
   onExit: () => void
+  currentMode?: string
+  onNavigate?: (mode: any) => void
 }
 
 interface KitchenTicket {
@@ -43,7 +46,7 @@ interface KitchenTicket {
   newItemIds: Set<string>
 }
 
-export default function KitchenMode({ onExit }: KitchenModeProps) {
+export default function KitchenMode({ onExit, currentMode, onNavigate }: KitchenModeProps) {
   const { currentShop, user, shops, selectShop, logout } = useSession()
   const shopFetch = useShopFetch()
   const [tickets, setTickets] = useState<KitchenTicket[]>([])
@@ -214,6 +217,10 @@ export default function KitchenMode({ onExit }: KitchenModeProps) {
             <Button variant="ghost" size="sm" onClick={onExit} className="text-slate-300 hover:text-white shrink-0">
               <ArrowLeft className="w-4 h-4 mr-1" /> <span className="hidden sm:inline">Exit</span>
             </Button>
+            {/* Inline shortcut bar */}
+            {onNavigate && currentMode && (
+              <GlobalShortcutBarInline currentMode={currentMode as any} onNavigate={onNavigate} inline />
+            )}
             <div className="hidden sm:block w-px h-6 bg-slate-700" />
             <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-brand-gradient flex items-center justify-center shadow-lg shrink-0">
               <ChefHat className="w-5 h-5 text-white" />

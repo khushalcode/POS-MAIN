@@ -32,14 +32,17 @@ import { PrintPreview } from '@/components/shared/PrintPreview'
 import { BillReceipt } from '@/components/shared/Receipts'
 import { useShopFetch } from '@/hooks/use-shop-fetch'
 import { useSession } from '@/lib/session'
+import { GlobalShortcutBar as GlobalShortcutBarInline } from '@/components/shared/GlobalShortcutBar'
 import { formatCurrency, formatDateTime } from '@/lib/format'
 import type { Bill, PaymentMode } from '@/lib/types'
 
 interface HistoryModeProps {
   onExit: () => void
+  currentMode?: string
+  onNavigate?: (mode: any) => void
 }
 
-export default function HistoryMode({ onExit }: HistoryModeProps) {
+export default function HistoryMode({ onExit, currentMode, onNavigate }: HistoryModeProps) {
   const { currentShop } = useSession()
   const shopFetch = useShopFetch()
   const [bills, setBills] = useState<Bill[]>([])
@@ -90,6 +93,10 @@ export default function HistoryMode({ onExit }: HistoryModeProps) {
             <Button variant="ghost" size="sm" onClick={onExit}>
               <ArrowLeft className="w-4 h-4 mr-1" /> Exit
             </Button>
+            {/* Inline shortcut bar */}
+            {onNavigate && currentMode && (
+              <GlobalShortcutBarInline currentMode={currentMode as any} onNavigate={onNavigate} inline />
+            )}
             <div className="w-px h-6 bg-slate-200" />
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center">
               <Receipt className="w-5 h-5 text-white" />

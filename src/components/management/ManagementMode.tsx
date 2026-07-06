@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/dialog'
 import { useMgmtNav, type ManagementPage } from './store'
 import { useSession } from '@/lib/session'
+import { GlobalShortcutBar as GlobalShortcutBarInline } from '@/components/shared/GlobalShortcutBar'
 import { formatCurrency, formatTime } from '@/lib/format'
 
 // Code-split each page so initial JS stays small
@@ -105,9 +106,11 @@ const PAGE_LABELS: Record<ManagementPage, string> = Object.fromEntries(
 
 interface ManagementModeProps {
   onExit: () => void
+  currentMode?: string
+  onNavigate?: (mode: any) => void
 }
 
-export default function ManagementMode({ onExit }: ManagementModeProps) {
+export default function ManagementMode({ onExit, currentMode, onNavigate }: ManagementModeProps) {
   const nav = useMgmtNav()
   const { user, currentShop, shops, selectShop, logout, theme, setTheme } = useSession()
   const [isMobile, setIsMobile] = useState(false)
@@ -196,7 +199,11 @@ export default function ManagementMode({ onExit }: ManagementModeProps) {
           ))}
         </nav>
       </ScrollArea>
-      <div className="p-3 border-t border-white/10">
+      <div className="p-3 border-t border-white/10 space-y-2">
+        {/* Inline shortcut bar */}
+        {onNavigate && currentMode && (
+          <GlobalShortcutBarInline currentMode={currentMode as any} onNavigate={onNavigate} inline />
+        )}
         <Button variant="ghost" size="sm" onClick={onExit} className="w-full justify-start text-slate-400 hover:text-white hover:bg-white/5">
           <ArrowLeft className="w-4 h-4 mr-2" /> Exit to Home
         </Button>
