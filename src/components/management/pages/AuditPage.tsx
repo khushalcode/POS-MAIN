@@ -33,6 +33,7 @@ const ACTION_META: Record<string, { label: string; icon: any; color: string }> =
   login: { label: 'Login', icon: LogIn, color: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
   logout: { label: 'Logout', icon: LogOut, color: 'bg-slate-100 text-slate-700 border-slate-200' },
   order_create: { label: 'Order Created', icon: ShoppingCart, color: 'bg-blue-100 text-blue-700 border-blue-200' },
+  order_deleted: { label: 'Order Deleted', icon: Trash2, color: 'bg-rose-100 text-rose-700 border-rose-200' },
   kot_send: { label: 'KOT Sent', icon: ChefHat, color: 'bg-amber-100 text-amber-700 border-amber-200' },
   bill_generate: { label: 'Bill Generated', icon: Receipt, color: 'bg-violet-100 text-violet-700 border-violet-200' },
   user_create: { label: 'User Created', icon: UserCog, color: 'bg-sky-100 text-sky-700 border-sky-200' },
@@ -99,8 +100,15 @@ export default function AuditPage() {
           <p className="text-[10px] sm:text-sm text-slate-500">{logs.length} entries · Track who did what</p>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            variant={actionFilter === 'order_deleted' ? 'destructive' : 'outline'}
+            size="sm"
+            onClick={() => setActionFilter(actionFilter === 'order_deleted' ? 'all' : 'order_deleted')}
+          >
+            <Trash2 className="w-3.5 h-3.5 mr-1" /> Deleted Orders ({logs.filter((l) => l.action === 'order_deleted').length})
+          </Button>
           <Button variant="outline" size="sm" onClick={() => setShowClear(true)}>
-            <Trash2 className="w-3.5 h-3.5 mr-1" /> Clear Old
+            Clear Old
           </Button>
         </div>
       </div>

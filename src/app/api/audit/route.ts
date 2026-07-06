@@ -1,6 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getShopId } from '@/lib/shop-context'
+import { logAudit } from '@/lib/audit'
+
+// POST /api/audit — manually log an audit event (e.g. order deletion)
+export async function POST(req: NextRequest) {
+  const shopId = getShopId(req)
+  const body = await req.json()
+  await logAudit({
+    shopId,
+    userId: body.userId || null,
+    userName: body.userName || null,
+    userRole: body.userRole || null,
+    action: body.action || 'unknown',
+    details: body.details || null,
+    ipAddress: req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip'),
+  })
+  return NextResponse.json({ ok: true })
+}
 
 // GET /api/audit?action=&userId=&from=&to=
 export async function GET(req: NextRequest) {

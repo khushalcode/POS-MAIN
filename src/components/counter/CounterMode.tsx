@@ -14,6 +14,7 @@ import {
   Loader2,
   CheckCircle2,
   AlertCircle,
+  Save,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -61,6 +62,8 @@ export default function CounterMode({ onExit, directMode }: CounterModeProps) {
   const [printedItemIds, setPrintedItemIds] = useState<Set<string>>(new Set())
   const [kotItemsToPrint, setKotItemsToPrint] = useState<OrderItem[]>([])
   const [showBilling, setShowBilling] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [deleteReason, setDeleteReason] = useState('')
   const [billNo, setBillNo] = useState(1001)
   const [settings, setSettings] = useState<any>(null)
   const [busy, setBusy] = useState(false)
@@ -367,6 +370,46 @@ export default function CounterMode({ onExit, directMode }: CounterModeProps) {
     }
   }
 
+  // ----- Save order (without sending KOT or printing bill) -----
+  const saveOrder = async () => {
+    if (!order) return
+    toast.success('Order saved — you can continue editing later')
+    await loadTables()
+  }
+
+  // ----- Delete order with reason -----
+  const deleteOrderWithReason = async () => {
+    if (!order || !deleteReason.trim()) {
+      toast.error('Please enter a reason for deleting this order')
+      return
+    }
+    try {
+      // Log the deletion with reason via audit endpoint
+      await shopFetch('/api/audit', {
+        method: 'POST',
+        body: JSON.stringify({
+          action: 'order_deleted',
+          details: {
+            orderId: order.id,
+            tableNumber: order.table?.number || 0,
+            reason: deleteReason,
+            items: (order.items || []).map((i) => `${i.quantity}× ${i.name}`),
+            total: (order.items || []).filter((i) => i.status !== 'cancelled').reduce((s, i) => s + i.price * i.quantity, 0),
+          },
+        }),
+      })
+    } catch {
+      // audit logging is best-effort
+    }
+
+    // Delete the order
+    await shopFetch(`/api/orders/${order.id}`, { method: 'DELETE' })
+    toast.success(`Order deleted — Reason: ${deleteReason}`)
+    setShowDeleteConfirm(false)
+    setDeleteReason('')
+    closeTable()
+  }
+
   // ----- Mark an item served (after kitchen said ready) -----
   const markServed = async (it: OrderItem) => {
     if (!order) return
@@ -582,24 +625,43 @@ export default function CounterMode({ onExit, directMode }: CounterModeProps) {
             )}
           </div>
 
-          {/* Action buttons */}
-          <div className="grid grid-cols-2 gap-2">
+          {/* Action buttons — 3 columns: Save, Send KOT, Generate Bill */}
+          <div className="grid grid-cols-3 gap-2">
+            <Button
+              onClick={saveOrder}
+              disabled={!order || (order.items || []).length === 0 || busy}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              <Save className="w-4 h-4 mr-1.5" /> Save
+            </Button>
             <Button
               onClick={sendToKitchen}
               disabled={!canSend || busy}
               className="bg-gradient-to-r from-orange-500 to-rose-500 hover:from-orange-600 hover:to-rose-600 text-white"
             >
               <Send className="w-4 h-4 mr-1.5" />
-              {order?.status === 'open' ? 'Send to Kitchen' : 'Re-print KOT'}
+              {order?.status === 'open' ? 'Send KOT' : 'Re-print'}
             </Button>
             <Button
               onClick={openBilling}
               disabled={!canBill}
               className="bg-slate-900 hover:bg-slate-800 text-white"
             >
-              <Receipt className="w-4 h-4 mr-1.5" /> Generate Bill
+              <Receipt className="w-4 h-4 mr-1.5" /> Bill
             </Button>
           </div>
+
+          {/* Delete order with reason */}
+          {order && (order.items || []).length > 0 && (
+            <Button
+              onClick={() => setShowDeleteConfirm(true)}
+              variant="outline"
+              className="w-full text-rose-600 border-rose-300 hover:bg-rose-50"
+              size="sm"
+            >
+              <Trash2 className="w-3.5 h-3.5 mr-1.5" /> Delete Order / Token
+            </Button>
+          )}
 
           {/* Quick served action */}
           {order && (order.items || []).some((i) => i.status === 'ready') && (
@@ -630,23 +692,30 @@ export default function CounterMode({ onExit, directMode }: CounterModeProps) {
         </div>
       </main>
 
-      {/* Sticky bottom action bar — mobile only */}
+      {/* Sticky bottom action bar — mobile only, 3 buttons */}
       {order && (
-        <div className="lg:hidden sticky bottom-0 left-0 right-0 z-20 bg-slate-900/95 backdrop-blur-xl border-t border-white/10 p-3 grid grid-cols-2 gap-2 shadow-2xl">
+        <div className="lg:hidden sticky bottom-0 left-0 right-0 z-20 bg-slate-900/95 backdrop-blur-xl border-t border-white/10 p-3 grid grid-cols-3 gap-2 shadow-2xl">
+          <Button
+            onClick={saveOrder}
+            disabled={(order.items || []).length === 0 || busy}
+            className="bg-blue-600 hover:bg-blue-700 text-white h-12 text-xs font-bold shadow-lg"
+          >
+            <Save className="w-4 h-4 mr-1" /> Save
+          </Button>
           <Button
             onClick={sendToKitchen}
             disabled={!canSend || busy}
-            className="bg-gradient-to-r from-orange-500 to-rose-500 hover:from-orange-600 hover:to-rose-600 text-white h-12 text-sm font-bold shadow-lg"
+            className="bg-gradient-to-r from-orange-500 to-rose-500 text-white h-12 text-xs font-bold shadow-lg"
           >
-            <Send className="w-4 h-4 mr-1.5" />
-            {order.status === 'open' ? 'Send KOT' : 'Re-print'}
+            <Send className="w-4 h-4 mr-1" />
+            {order.status === 'open' ? 'KOT' : 'Re-print'}
           </Button>
           <Button
             onClick={openBilling}
             disabled={!canBill}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white h-12 text-sm font-bold shadow-lg"
+            className="bg-emerald-600 hover:bg-emerald-700 text-white h-12 text-xs font-bold shadow-lg"
           >
-            <Receipt className="w-4 h-4 mr-1.5" /> Bill
+            <Receipt className="w-4 h-4 mr-1" /> Bill
           </Button>
         </div>
       )}
@@ -684,6 +753,57 @@ export default function CounterMode({ onExit, directMode }: CounterModeProps) {
           setTimeout(() => closeTable(), 500)
         }}
       />
+
+      {/* Delete order confirmation with reason */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowDeleteConfirm(false)}>
+          <motion.div
+            className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-5"
+            initial={{ scale: 0.96, y: 12 }}
+            animate={{ scale: 1, y: 0 }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-10 h-10 rounded-full bg-rose-100 flex items-center justify-center">
+                <Trash2 className="w-5 h-5 text-rose-600" />
+              </div>
+              <div>
+                <h3 className="font-bold text-slate-900">Delete Order?</h3>
+                <p className="text-xs text-slate-500">This action cannot be undone</p>
+              </div>
+            </div>
+            <div className="bg-slate-50 rounded-lg p-3 mb-3 text-xs space-y-0.5">
+              <p className="font-semibold text-slate-700">
+                {order?.table?.number === 0 ? 'Direct Order' : `Table ${order?.table?.number}`}
+              </p>
+              <p className="text-slate-500">{(order?.items || []).length} items · ₹{(order?.items || []).filter((i) => i.status !== 'cancelled').reduce((s, i) => s + i.price * i.quantity, 0).toFixed(2)}</p>
+            </div>
+            <div className="space-y-1.5 mb-4">
+              <Label className="text-xs font-semibold text-slate-700">Reason for deletion *</Label>
+              <Textarea
+                value={deleteReason}
+                onChange={(e) => setDeleteReason(e.target.value)}
+                placeholder="e.g. Customer cancelled, wrong order, duplicate…"
+                rows={3}
+                autoFocus
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => { setShowDeleteConfirm(false); setDeleteReason('') }} className="flex-1">
+                Cancel
+              </Button>
+              <Button
+                onClick={deleteOrderWithReason}
+                disabled={!deleteReason.trim()}
+                variant="destructive"
+                className="flex-1"
+              >
+                <Trash2 className="w-4 h-4 mr-1.5" /> Delete
+              </Button>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   )
 }

@@ -13,12 +13,6 @@ interface GlobalShortcutBarProps {
   onNavigate: (mode: ShortcutMode) => void
 }
 
-/**
- * GlobalShortcutBar
- * Sticky bar at top of every page for one-click navigation between modes.
- * Shows 5 shortcuts: Dashboard, Direct, Counter, Kitchen, Bills (+ Zomato for all).
- * Adapts to the active theme via brand-gradient.
- */
 export function GlobalShortcutBar({ currentMode, onNavigate }: GlobalShortcutBarProps) {
   const { user } = useSession()
   const isAdmin = user?.role === 'admin'
@@ -33,8 +27,8 @@ export function GlobalShortcutBar({ currentMode, onNavigate }: GlobalShortcutBar
   ]
 
   return (
-    <div className="sticky top-0 z-40 bg-slate-900/90 backdrop-blur-xl border-b border-white/10">
-      <div className="max-w-7xl mx-auto px-2 sm:px-4 py-1.5 flex items-center justify-center gap-1 sm:gap-2 overflow-x-auto">
+    <div className="sticky top-[52px] sm:top-[56px] z-40 bg-slate-900/95 backdrop-blur-xl border-b border-white/10">
+      <div className="max-w-7xl mx-auto px-2 sm:px-4 py-2 flex items-center justify-center gap-1.5 sm:gap-2">
         {shortcuts.map((s) => {
           const isActive = currentMode === s.mode
           return (
@@ -42,14 +36,14 @@ export function GlobalShortcutBar({ currentMode, onNavigate }: GlobalShortcutBar
               key={s.mode}
               onClick={() => onNavigate(s.mode)}
               whileTap={{ scale: 0.95 }}
-              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
+              className={`flex items-center justify-center gap-1.5 px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap min-w-[80px] sm:min-w-[100px] ${
                 isActive
-                  ? `bg-gradient-to-r ${s.color} text-white shadow-lg`
-                  : 'text-slate-400 hover:text-white hover:bg-white/10'
+                  ? `bg-gradient-to-r ${s.color} text-white shadow-lg ring-2 ring-white/30`
+                  : 'text-slate-400 hover:text-white bg-white/5 hover:bg-white/10'
               }`}
             >
-              <s.icon className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">{s.label}</span>
+              <s.icon className="w-4 h-4" />
+              <span>{s.label}</span>
             </motion.button>
           )
         })}

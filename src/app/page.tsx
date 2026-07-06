@@ -129,12 +129,13 @@ function HomeScreen({ mode, onSelect, daysLeft, onReactivate }: { mode: Mode; on
   }
 
   const allModes = [
+    // Management FIRST for admin users
+    { key: 'management' as Mode, title: 'Management', subtitle: 'Dashboard, inventory, finance, reports, audit', icon: LayoutDashboard, tags: ['Dashboard', 'Reports', 'Audit', 'Users'], span: 'md:col-span-3', roles: ['admin'] as const },
     { key: 'direct' as Mode, title: 'Direct Order', subtitle: 'Quick takeaway', icon: Zap, tags: ['Fast', 'Takeaway'], featured: true, roles: ['admin', 'staff'] as const },
     { key: 'counter' as Mode, title: 'Counter Mode', subtitle: 'Tables, KOT & bills', icon: Store, tags: ['Tables', '2-copy print'], roles: ['admin', 'staff'] as const },
     { key: 'zomato' as Mode, title: 'Zomato Orders', subtitle: 'Push to kitchen', icon: Bike, tags: ['Sync', 'Status flow'], roles: ['admin', 'staff'] as const },
     { key: 'kitchen' as Mode, title: 'Kitchen Mode', subtitle: 'Live KOT display', icon: ChefHat, tags: ['Real-time', 'Ready alerts'], roles: ['admin', 'staff'] as const },
     { key: 'history' as Mode, title: 'Bills & History', subtitle: 'Past bills, revenue', icon: Receipt, tags: ['Search', 'Revenue'], roles: ['admin', 'staff'] as const },
-    { key: 'management' as Mode, title: 'Management', subtitle: 'Dashboard, inventory, finance', icon: LayoutDashboard, tags: ['Dashboard', 'Reports', 'Audit'], span: 'md:col-span-3', roles: ['admin'] as const },
   ]
 
   const visibleModes = allModes.filter((m) => m.roles.includes(user?.role as any))

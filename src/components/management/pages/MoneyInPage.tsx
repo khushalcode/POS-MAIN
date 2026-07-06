@@ -33,6 +33,20 @@ export default function MoneyInPage() {
 
   const total = items.reduce((s, i) => s + i.amount, 0)
   const totalToday = items.filter((i) => new Date(i.date).toDateString() === new Date().toDateString()).reduce((s, i) => s + i.amount, 0)
+  const [salesData, setSalesData] = useState({ todayRevenue: 0, todayCount: 0, monthRevenue: 0, monthCount: 0, allTimeRevenue: 0 })
+
+  // Fetch sales amounts from dashboard
+  useEffect(() => {
+    shopFetch('/api/dashboard').then((r) => r.json()).then((d) => {
+      setSalesData({
+        todayRevenue: d.today?.revenue || 0,
+        todayCount: d.today?.count || 0,
+        monthRevenue: d.month?.revenue || 0,
+        monthCount: d.month?.count || 0,
+        allTimeRevenue: d.allTime?.revenue || 0,
+      })
+    }).catch(() => {})
+  }, [shopFetch])
 
   const save = async (data: any) => {
     const res = await shopFetch('/api/moneyin', {
@@ -63,6 +77,34 @@ export default function MoneyInPage() {
         <Button onClick={() => setShowAdd(true)} className="bg-gradient-to-r from-emerald-500 to-teal-500 text-white">
           <Plus className="w-4 h-4 mr-1" /> New Entry
         </Button>
+      </div>
+
+      {/* Sales amount summary */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <Card className="border-0 shadow-md rounded-2xl overflow-hidden relative">
+          <div className="absolute inset-0 bg-gradient-to-br from-emerald-500 to-teal-600 opacity-95" />
+          <CardContent className="relative p-4 text-white">
+            <p className="text-[10px] font-medium text-white/80 uppercase tracking-wide">Today's Sales</p>
+            <p className="text-2xl font-bold">{formatCurrency(salesData.todayRevenue)}</p>
+            <p className="text-[10px] text-white/70">{salesData.todayCount} bills</p>
+          </CardContent>
+        </Card>
+        <Card className="border-0 shadow-md rounded-2xl overflow-hidden relative">
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-indigo-600 opacity-95" />
+          <CardContent className="relative p-4 text-white">
+            <p className="text-[10px] font-medium text-white/80 uppercase tracking-wide">Monthly Sales</p>
+            <p className="text-2xl font-bold">{formatCurrency(salesData.monthRevenue)}</p>
+            <p className="text-[10px] text-white/70">{salesData.monthCount} bills</p>
+          </CardContent>
+        </Card>
+        <Card className="border-0 shadow-md rounded-2xl overflow-hidden relative">
+          <div className="absolute inset-0 bg-gradient-to-br from-violet-500 to-fuchsia-600 opacity-95" />
+          <CardContent className="relative p-4 text-white">
+            <p className="text-[10px] font-medium text-white/80 uppercase tracking-wide">All-Time Sales</p>
+            <p className="text-2xl font-bold">{formatCurrency(salesData.allTimeRevenue)}</p>
+            <p className="text-[10px] text-white/70">Total revenue</p>
+          </CardContent>
+        </Card>
       </div>
 
       {loading ? (
