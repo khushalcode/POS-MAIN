@@ -32,6 +32,12 @@ export default function Home() {
   const [mode, setMode] = useState<Mode>('home')
   const [showLicenseScreen, setShowLicenseScreen] = useState(false)
 
+  // ─── Auto-seed database on first launch ───
+  // This fixes "Unexpected end of JSON input" on fresh devices
+  useEffect(() => {
+    fetch('/api/auto-seed').catch(() => {})
+  }, [])
+
   useEffect(() => {
     if (loading || !user) return
     if (typeof window === 'undefined') return
