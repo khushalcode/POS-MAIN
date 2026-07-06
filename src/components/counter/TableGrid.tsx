@@ -25,10 +25,10 @@ export function TableGrid({ tables, onSelectTable }: TableGridProps) {
         >
           <Card
             onClick={() => onSelectTable(t)}
-            className={`cursor-pointer p-4 transition-all hover:-translate-y-0.5 hover:shadow-lg border-2 ${
+            className={`cursor-pointer p-4 transition-all hover:-translate-y-0.5 hover:shadow-lg border-2 backdrop-blur-md ${
               t.status === 'occupied'
-                ? 'bg-gradient-to-br from-orange-50 to-rose-50 border-orange-200 hover:border-orange-300'
-                : 'bg-white border-emerald-200 hover:border-emerald-300'
+                ? 'bg-orange-50/70 border-orange-200/60 hover:border-orange-300'
+                : 'bg-white/70 border-emerald-200/60 hover:border-emerald-300'
             }`}
           >
             <div className="flex items-start justify-between mb-3">

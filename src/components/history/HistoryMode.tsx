@@ -87,7 +87,7 @@ export default function HistoryMode({ onExit, currentMode, onNavigate }: History
 
   return (
     <div className="min-h-screen img-bg">
-      <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-xl border-b border-slate-200">
+      <header className="sticky top-0 z-30 bg-white/70 backdrop-blur-xl border-b border-white/20 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 md:px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="sm" onClick={onExit}>

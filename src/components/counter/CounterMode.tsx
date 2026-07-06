@@ -15,6 +15,7 @@ import {
   CheckCircle2,
   AlertCircle,
   Save,
+  Zap,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -67,6 +68,18 @@ export default function CounterMode({ onExit, directMode, currentMode, onNavigat
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [deleteReason, setDeleteReason] = useState('')
   const [billNo, setBillNo] = useState(1001)
+
+  // When switching from Direct → Counter via shortcut bar, reset to table grid
+  useEffect(() => {
+    if (currentMode === 'counter' && !directMode && selectedTable) {
+      setSelectedTable(null)
+      setOrder(null)
+      setPrintedItemIds(new Set())
+      setKotItemsToPrint([])
+      setKotNo(0)
+      loadTables()
+    }
+  }, [currentMode, directMode]) // eslint-disable-line react-hooks/exhaustive-deps
   const [settings, setSettings] = useState<any>(null)
   const [busy, setBusy] = useState(false)
 
@@ -524,7 +537,7 @@ export default function CounterMode({ onExit, directMode, currentMode, onNavigat
 
     return (
       <div className="min-h-screen img-bg">
-        <Header onExit={onExit} role="counter" connected={sync.connected} currentMode={currentMode} onNavigate={onNavigate} />
+        <Header onExit={onExit} role="counter" connected={sync.connected} currentMode={currentMode} onNavigate={onNavigate} isDirect={directMode} />
         <main className="max-w-7xl mx-auto px-4 md:px-6 py-6">
           <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
             <div>
@@ -569,11 +582,11 @@ export default function CounterMode({ onExit, directMode, currentMode, onNavigat
 
   return (
     <div className="min-h-screen img-bg flex flex-col">
-      <Header onExit={closeTable} role="counter" connected={sync.connected} backLabel="Back to tables" currentMode={currentMode} onNavigate={onNavigate} />
+      <Header onExit={closeTable} role="counter" connected={sync.connected} backLabel="Back to tables" currentMode={currentMode} onNavigate={onNavigate} isDirect={directMode} />
 
       <main className="flex-1 max-w-7xl mx-auto w-full px-4 md:px-6 py-4 grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-4">
         {/* Left: Menu picker */}
-        <div className="flex flex-col bg-white rounded-2xl border border-slate-200 p-4 min-h-[60vh]">
+        <div className="flex flex-col bg-white/80 backdrop-blur-md rounded-2xl border border-white/30 p-4 min-h-[60vh] shadow-sm">
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-bold text-slate-900">Menu</h2>
             <Badge variant="outline" className="text-[10px]">
@@ -588,7 +601,7 @@ export default function CounterMode({ onExit, directMode, currentMode, onNavigat
         {/* Right: Order cart + actions */}
         <div className="flex flex-col gap-3">
           {/* Order meta */}
-          <Card className="p-3">
+          <Card className="p-3 bg-white/80 backdrop-blur-md border-white/30">
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <Label className="text-[10px] text-slate-500">Guests</Label>
@@ -634,7 +647,7 @@ export default function CounterMode({ onExit, directMode, currentMode, onNavigat
           </Card>
 
           {/* Cart */}
-          <div className="flex-1 min-h-[300px] rounded-2xl border border-slate-200 overflow-hidden">
+          <div className="flex-1 min-h-[300px] rounded-2xl border border-white/30 overflow-hidden shadow-sm">
             {order && (
               <OrderCart
                 order={order}
@@ -838,6 +851,7 @@ function Header({
   backLabel = 'Exit',
   currentMode,
   onNavigate,
+  isDirect = false,
 }: {
   onExit: () => void
   role: 'counter' | 'kitchen' | 'history'
@@ -845,6 +859,7 @@ function Header({
   backLabel?: string
   currentMode?: string
   onNavigate?: (mode: any) => void
+  isDirect?: boolean
 }) {
   const { currentShop, user, shops, selectShop, logout } = useSession()
   const labels = {
@@ -853,8 +868,10 @@ function Header({
     history: { title: 'Bills & History', color: 'bg-brand-gradient', icon: Store },
   }
   const l = labels[role]
+  const displayTitle = isDirect ? 'Direct Order' : l.title
+  const displayIcon = isDirect ? Zap : l.icon
   return (
-    <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-xl border-b border-slate-200">
+    <header className="sticky top-0 z-30 bg-white/70 backdrop-blur-xl border-b border-white/20 shadow-sm">
       <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 py-2.5 sm:py-3 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           <Button variant="ghost" size="sm" onClick={onExit} className="shrink-0">
@@ -866,10 +883,10 @@ function Header({
           )}
           <div className="hidden md:block w-px h-6 bg-slate-200" />
           <div className={`hidden md:flex w-9 h-9 rounded-xl ${l.color} items-center justify-center`}>
-            <l.icon className="w-5 h-5 text-white" />
+            <displayIcon className="w-5 h-5 text-white" />
           </div>
           <div className="min-w-0 hidden md:block">
-            <h2 className="text-sm font-bold text-slate-900 truncate">{l.title}</h2>
+            <h2 className="text-sm font-bold text-slate-900 truncate">{displayTitle}</h2>
             <p className="text-[10px] text-slate-500 flex items-center gap-1">
               {connected ? '● Live' : '○ Reconnecting'}
               {currentShop && <span className="hidden sm:inline">· {currentShop.name}</span>}

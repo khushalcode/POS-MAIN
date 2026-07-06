@@ -211,7 +211,7 @@ export default function KitchenMode({ onExit, currentMode, onNavigate }: Kitchen
 
   return (
     <div className="min-h-screen img-bg text-white">
-      <header className="sticky top-0 z-30 bg-slate-950/90 backdrop-blur-xl border-b border-slate-800">
+      <header className="sticky top-0 z-30 bg-slate-950/70 backdrop-blur-xl border-b border-white/10 shadow-lg">
         <div className="max-w-[1800px] mx-auto px-3 sm:px-4 md:px-6 py-2.5 sm:py-3 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <Button variant="ghost" size="sm" onClick={onExit} className="text-slate-300 hover:text-white shrink-0">

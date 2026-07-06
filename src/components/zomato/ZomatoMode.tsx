@@ -162,7 +162,7 @@ export default function ZomatoMode({ onExit, currentMode, onNavigate }: ZomatoMo
   return (
     <div className="min-h-screen img-bg">
       {/* Header */}
-      <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-xl border-b border-slate-200">
+      <header className="sticky top-0 z-30 bg-white/70 backdrop-blur-xl border-b border-white/20 shadow-sm">
         <div className="max-w-7xl mx-auto px-3 sm:px-4 py-2.5 sm:py-3 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <Button variant="ghost" size="sm" onClick={onExit} className="shrink-0">
