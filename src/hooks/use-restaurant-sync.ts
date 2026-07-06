@@ -11,22 +11,20 @@ import type {
 } from '@/lib/types'
 
 /**
- * useRestaurantSync
- * ------------------
- * Uses Supabase Realtime channels for cross-device sync.
- * Works across any network (internet) — counter and kitchen can be on
- * completely different devices/networks and still sync in real-time.
+ * useRestaurantSync — DUAL SYNC
+ * -----------------------------
+ * Works BOTH ways:
  *
- * Channel is scoped per shop: `shop-{shopId}` so events don't cross shops.
+ * 1. OFFLINE (same WiFi, no internet):
+ *    Uses Socket.io mini-service on port 3005
+ *    Counter PC runs the server → Kitchen tablet on same WiFi connects
+ *    100% offline, no internet needed
  *
- * Events broadcast:
- *   - kot:new            (kitchen listens)
- *   - kot:item-added     (kitchen listens)
- *   - item:status        (both sides)
- *   - order:status       (both sides)
- *   - table:released     (kitchen listens)
- *   - table:occupied     (kitchen listens)
- *   - data:refresh       (both sides)
+ * 2. ONLINE (internet available):
+ *    Uses Supabase Realtime channels
+ *    Works across any network (different WiFi, 4G, etc.)
+ *
+ * Both run simultaneously — if one fails, the other still works.
  */
 
 type Role = 'counter' | 'kitchen'
@@ -45,24 +43,73 @@ export function useRestaurantSync(role: Role, handlers: Handlers) {
   const { currentShop } = useSession()
   const [connected, setConnected] = useState(false)
   const [onlineCount, setOnlineCount] = useState(0)
-  const channelRef = useRef<ReturnType<ReturnType<typeof getSupabase>['channel']> | null>(null)
+  const [syncMode, setSyncMode] = useState<'offline' | 'online' | 'both' | 'none'>('none')
+
+  const socketRef = useRef<any>(null)
+  const supabaseChannelRef = useRef<any>(null)
   const handlersRef = useRef(handlers)
   handlersRef.current = handlers
 
+  // ─── 1. SOCKET.IO (Offline — same WiFi) ───
+  useEffect(() => {
+    let mounted = true
+
+    ;(async () => {
+      try {
+        const { io } = await import('socket.io-client')
+        // Connect via Caddy gateway (works on same device + same WiFi)
+        const socket = io('/?XTransformPort=3005', {
+          transports: ['websocket', 'polling'],
+          reconnection: true,
+          reconnectionDelay: 1000,
+          reconnectionAttempts: Infinity,
+        })
+
+        if (!mounted) { socket.close(); return }
+        socketRef.current = socket
+
+        socket.on('connect', () => {
+          setConnected(true)
+          socket.emit('join', role)
+          setSyncMode(prev => prev === 'online' ? 'both' : 'offline')
+        })
+        socket.on('disconnect', () => {
+          setConnected(false)
+          setSyncMode(prev => prev === 'online' ? 'online' : 'none')
+        })
+
+        socket.on('joined', ({ online }: { online: number }) => setOnlineCount(online))
+
+        socket.on('kot:new', (p: KOTPayload) => handlersRef.current.onKOTNew?.(p))
+        socket.on('kot:item-added', (p: KOTPayload) => handlersRef.current.onKOTItemAdded?.(p))
+        socket.on('item:status', (p: ItemStatusPayload) => handlersRef.current.onItemStatus?.(p))
+        socket.on('order:status', (p: OrderStatusPayload) => handlersRef.current.onOrderStatus?.(p))
+        socket.on('table:released', (p: TablePayload) => handlersRef.current.onTableReleased?.(p))
+        socket.on('table:occupied', (p: TablePayload) => handlersRef.current.onTableOccupied?.(p))
+        socket.on('data:refresh', (p: unknown) => handlersRef.current.onDataRefresh?.(p))
+      } catch {
+        // Socket.io not available — that's OK, Supabase will handle it
+      }
+    })()
+
+    return () => {
+      mounted = false
+      socketRef.current?.close()
+      socketRef.current = null
+    }
+  }, [role])
+
+  // ─── 2. SUPABASE REALTIME (Online — internet) ───
   useEffect(() => {
     if (!currentShop?.id) return
     const supabase = getSupabase()
-    if (!supabase) {
-      console.warn('[sync] Supabase not configured — real-time sync disabled')
-      return
-    }
+    if (!supabase) return
 
     const channelName = shopChannel(currentShop.id)
     const channel = supabase.channel(channelName, {
       config: { presence: { key: `${role}-${Math.random().toString(36).slice(2, 8)}` } },
     })
 
-    // Listen to all custom events
     const events: Array<{ name: string; handler: (payload: any) => void }> = [
       { name: 'kot:new', handler: (p) => handlersRef.current.onKOTNew?.(p.payload) },
       { name: 'kot:item-added', handler: (p) => handlersRef.current.onKOTItemAdded?.(p.payload) },
@@ -77,65 +124,60 @@ export function useRestaurantSync(role: Role, handlers: Handlers) {
       channel.on('broadcast', { event: name }, (msg: any) => handler(msg))
     })
 
-    // Presence — track online devices
     channel
       .on('presence', { event: 'sync' }, () => {
         const state = channel.presenceState()
         setOnlineCount(Object.keys(state).length)
-        setConnected(true)
-      })
-      .on('presence', { event: 'join' }, () => {
-        const state = channel.presenceState()
-        setOnlineCount(Object.keys(state).length)
-      })
-      .on('presence', { event: 'leave' }, () => {
-        const state = channel.presenceState()
-        setOnlineCount(Object.keys(state).length)
+        setSyncMode(prev => prev === 'offline' ? 'both' : 'online')
       })
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
           await channel.track({ role, online_at: new Date().toISOString() })
-          setConnected(true)
-        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-          setConnected(false)
         }
       })
 
-    channelRef.current = channel
+    supabaseChannelRef.current = channel
 
     return () => {
       supabase.removeChannel(channel)
-      channelRef.current = null
-      setConnected(false)
+      supabaseChannelRef.current = null
     }
   }, [role, currentShop?.id])
 
-  // Broadcast helpers
+  // ─── Send via BOTH channels ───
   const sendKOT = useCallback((p: KOTPayload) => {
-    channelRef.current?.send({ type: 'broadcast', event: 'kot:new', payload: p })
+    socketRef.current?.emit('kot:new', p)
+    supabaseChannelRef.current?.send({ type: 'broadcast', event: 'kot:new', payload: p })
   }, [])
   const sendItemAdded = useCallback((p: KOTPayload) => {
-    channelRef.current?.send({ type: 'broadcast', event: 'kot:item-added', payload: p })
+    socketRef.current?.emit('kot:item-added', p)
+    supabaseChannelRef.current?.send({ type: 'broadcast', event: 'kot:item-added', payload: p })
   }, [])
   const sendItemStatus = useCallback((p: ItemStatusPayload) => {
-    channelRef.current?.send({ type: 'broadcast', event: 'item:status', payload: p })
+    socketRef.current?.emit('item:status', p)
+    supabaseChannelRef.current?.send({ type: 'broadcast', event: 'item:status', payload: p })
   }, [])
   const sendOrderStatus = useCallback((p: OrderStatusPayload) => {
-    channelRef.current?.send({ type: 'broadcast', event: 'order:status', payload: p })
+    socketRef.current?.emit('order:status', p)
+    supabaseChannelRef.current?.send({ type: 'broadcast', event: 'order:status', payload: p })
   }, [])
   const sendTableReleased = useCallback((p: TablePayload) => {
-    channelRef.current?.send({ type: 'broadcast', event: 'table:released', payload: p })
+    socketRef.current?.emit('table:released', p)
+    supabaseChannelRef.current?.send({ type: 'broadcast', event: 'table:released', payload: p })
   }, [])
   const sendTableOccupied = useCallback((p: TablePayload) => {
-    channelRef.current?.send({ type: 'broadcast', event: 'table:occupied', payload: p })
+    socketRef.current?.emit('table:occupied', p)
+    supabaseChannelRef.current?.send({ type: 'broadcast', event: 'table:occupied', payload: p })
   }, [])
   const requestDataRefresh = useCallback((p?: unknown) => {
-    channelRef.current?.send({ type: 'broadcast', event: 'data:refresh', payload: p || {} })
+    socketRef.current?.emit('data:refresh', p || {})
+    supabaseChannelRef.current?.send({ type: 'broadcast', event: 'data:refresh', payload: p || {} })
   }, [])
 
   return {
     connected,
     onlineCount,
+    syncMode, // 'offline' | 'online' | 'both' | 'none'
     sendKOT,
     sendItemAdded,
     sendItemStatus,
