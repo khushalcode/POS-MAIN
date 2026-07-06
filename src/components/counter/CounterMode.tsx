@@ -370,11 +370,32 @@ export default function CounterMode({ onExit, directMode }: CounterModeProps) {
     }
   }
 
-  // ----- Save order (without sending KOT or printing bill) -----
+  // ----- Save order: close it + free the table (like bill does, but no bill generated) -----
   const saveOrder = async () => {
     if (!order) return
-    toast.success('Order saved — you can continue editing later')
-    await loadTables()
+    setBusy(true)
+    try {
+      // Call the free-table endpoint — marks order as billed + releases table
+      await shopFetch(`/api/orders/${order.id}/free-table`, { method: 'POST' })
+
+      // Broadcast table released + order closed
+      sync.sendTableReleased({
+        tableId: order.tableId,
+        tableNumber: order.table?.number || 0,
+      })
+      sync.sendOrderStatus({
+        orderId: order.id,
+        status: 'billed',
+        tableNumber: order.table?.number || 0,
+      })
+
+      toast.success('Order saved & table freed')
+      closeTable()
+    } catch {
+      toast.error('Failed to save order')
+    } finally {
+      setBusy(false)
+    }
   }
 
   // ----- Delete order with reason -----
