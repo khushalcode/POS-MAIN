@@ -869,7 +869,7 @@ function Header({
   }
   const l = labels[role]
   const displayTitle = isDirect ? 'Direct Order' : l.title
-  const displayIcon = isDirect ? Zap : l.icon
+  const DisplayIcon = isDirect ? Zap : l.icon
   return (
     <header className="sticky top-0 z-30 bg-white/70 backdrop-blur-xl border-b border-white/20 shadow-sm">
       <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 py-2.5 sm:py-3 flex items-center justify-between gap-2">
@@ -883,7 +883,7 @@ function Header({
           )}
           <div className="hidden md:block w-px h-6 bg-slate-200" />
           <div className={`hidden md:flex w-9 h-9 rounded-xl ${l.color} items-center justify-center`}>
-            <displayIcon className="w-5 h-5 text-white" />
+            <DisplayIcon className="w-5 h-5 text-white" />
           </div>
           <div className="min-w-0 hidden md:block">
             <h2 className="text-sm font-bold text-slate-900 truncate">{displayTitle}</h2>
