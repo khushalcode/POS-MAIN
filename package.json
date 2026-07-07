@@ -12,10 +12,11 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:reset": "prisma migrate reset",
+    "gen:icon": "node scripts/gen-icon.js",
     "electron:dev": "electron electron/main.js",
-    "electron:build": "npm run build && electron-builder",
-    "electron:dist": "npm run build && electron-builder --publish never",
-    "dist:win": "npm run build && electron-builder --win --x64",
+    "electron:build": "npm run gen:icon && npm run build && electron-builder",
+    "electron:dist": "npm run gen:icon && npm run build && electron-builder --publish never",
+    "dist:win": "npm run gen:icon && npm run build && electron-builder --win --x64",
     "dist:mac": "npm run build && electron-builder --mac",
     "dist:linux": "npm run build && electron-builder --linux"
   },
@@ -31,23 +32,22 @@
       "public/**/*",
       "prisma/**/*",
       "node_modules/.prisma/**/*",
-      "node_modules/@prisma/client/**/*"
+      "node_modules/@prisma/client/**/*",
+      "node_modules/sql.js/**/*",
+      "node_modules/@supabase/**/*"
     ],
     "extraResources": [
       {
         "from": ".next/standalone",
         "to": "standalone"
-      },
-      {
-        "from": "prisma/db",
-        "to": "db-template"
       }
     ],
+    "asar": true,
     "win": {
       "target": [
         "nsis"
       ],
-      "icon": "public/logo.svg"
+      "icon": "public/logo.ico"
     },
     "nsis": {
       "oneClick": false,
@@ -60,13 +60,13 @@
       "target": [
         "dmg"
       ],
-      "icon": "public/logo.svg"
+      "icon": "public/icon-256.png"
     },
     "linux": {
       "target": [
         "AppImage"
       ],
-      "icon": "public/logo.svg"
+      "icon": "public/icon-256.png"
     }
   },
   "dependencies": {

@@ -625,3 +625,36 @@ Stage Summary:
   - Settings → Zomato tab with full configuration UI
   - Falls back to simulation when not configured
   - Toast shows 🔴 LIVE or 🟡 SIM to indicate which mode is active
+
+---
+Task ID: fix-exe-build
+Agent: main
+Task: Fix "cp not recognized" and "only yaml file in release folder" errors when building Windows .exe
+
+Work Log:
+- Diagnosed root cause #1: package.json `build` script used Unix-only `cp -r` command (Windows doesn't have `cp`)
+- Created cross-platform Node.js copy script: scripts/copy-standalone.js (uses fs.copyFileSync, no external deps)
+- Updated package.json build script to use `node scripts/copy-standalone.js` instead of `cp -r`
+- Diagnosed root cause #2: `win.icon` was set to `public/logo.svg` — Windows .exe REQUIRES .ico format, causing silent build failure
+- Diagnosed root cause #3: `extraResources` referenced `prisma/db` folder which doesn't exist (would cause electron-builder to fail or skip)
+- Created scripts/gen-icon.js — uses sharp to render SVG to PNG at 6 sizes (16/32/48/64/128/256) and assembles them into a proper multi-resolution .ico file
+- Generated public/logo.ico (10303 bytes) + standalone PNGs (icon-16.png through icon-256.png)
+- Updated package.json:
+  * win.icon: public/logo.svg → public/logo.ico
+  * mac/linux icon: public/logo.svg → public/icon-256.png (Mac/Linux want PNG, not SVG)
+  * Removed broken `extraResources: prisma/db → db-template` (folder doesn't exist; electron main.js already creates empty DB in userData)
+  * Added `asar: true` for proper packaging
+  * Added `node_modules/sql.js/**/*` and `node_modules/@supabase/**/*` to files glob (needed for the new client-side data layer)
+  * Added `gen:icon` npm script and chained it before all electron:* scripts
+- Rewrote build-exe.bat to:
+  * Clean release/ and .next/ folders before building (no stale files)
+  * Run `node scripts/gen-icon.js` to regenerate .ico each build
+  * Run `prisma generate` (needed because `node_modules/.prisma/**/*` is in files glob)
+  * Added note that builder-effective-config.yaml is a NORMAL debug file, not an error
+
+Stage Summary:
+- Two real bugs fixed: (1) `cp -r` Unix-only command, (2) SVG icon breaks Windows NSIS packaging
+- One broken config removed: nonexistent `prisma/db` extraResource
+- New files: scripts/copy-standalone.js, scripts/gen-icon.js, public/logo.ico, public/icon-{16,32,48,64,128,256}.png
+- Updated files: package.json (build scripts + electron-builder config), build-exe.bat (more robust pipeline)
+- User should re-run build-exe.bat on Windows — should now produce `release/ServingSync POS Setup.exe`

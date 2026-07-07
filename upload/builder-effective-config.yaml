@@ -1,0 +1,37 @@
+directories:
+  output: release
+  buildResources: build
+appId: com.servingsync.pos
+productName: ServingSync POS
+files:
+  - filter:
+      - electron/**/*
+      - .next/standalone/**/*
+      - public/**/*
+      - prisma/**/*
+      - node_modules/.prisma/**/*
+      - node_modules/@prisma/client/**/*
+extraResources:
+  - from: .next/standalone
+    to: standalone
+  - from: prisma/db
+    to: db-template
+win:
+  target:
+    - nsis
+  icon: public/logo.svg
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: ServingSync POS
+mac:
+  target:
+    - dmg
+  icon: public/logo.svg
+linux:
+  target:
+    - AppImage
+  icon: public/logo.svg
+electronVersion: 33.4.11
