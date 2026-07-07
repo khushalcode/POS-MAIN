@@ -658,3 +658,22 @@ Stage Summary:
 - New files: scripts/copy-standalone.js, scripts/gen-icon.js, public/logo.ico, public/icon-{16,32,48,64,128,256}.png
 - Updated files: package.json (build scripts + electron-builder config), build-exe.bat (more robust pipeline)
 - User should re-run build-exe.bat on Windows — should now produce `release/ServingSync POS Setup.exe`
+
+---
+Task ID: github-actions-workflows
+Agent: main
+Task: Create GitHub Actions workflows to build Windows .exe and Android APK
+
+Work Log:
+- Created .github/workflows/build-exe.yml — Windows runner, builds electron-builder .exe, uploads as artifact + attaches to GitHub Release on tag pushes
+- Created .github/workflows/build-apk.yml — Ubuntu runner, builds Capacitor APK (debug), uploads as artifact + attaches to Release on tag
+- Created .github/workflows/release.yml — combined workflow triggered on `v*` tag push; builds both .exe and APK in parallel, then creates a draft GitHub Release with both artifacts
+- Created scripts/setup-capacitor.sh — one-time setup script to convert the project from standalone Next.js to static export + add Capacitor Android platform
+- Created .github/README.md — comprehensive docs explaining all three workflows, how to trigger them, how to download artifacts, runner minute costs, and optional instructions for signed Android release APK
+
+Stage Summary:
+- Three workflow files ready to use, pushed to .github/workflows/
+- .exe workflow works immediately on push to main or via manual dispatch
+- APK workflow requires one-time `bash scripts/setup-capacitor.sh` to be run locally and committed before it will succeed (project currently uses `output: "standalone"`, but Capacitor needs `output: "export"`)
+- Release workflow creates a single GitHub Release with both .exe and APK when you push a `v1.0.0` style tag
+- All workflows use GitHub's free Actions runners — no external CI services required
