@@ -6,13 +6,14 @@ import {
   UtensilsCrossed, Wifi, WifiOff, ArrowRight,
   Store, LayoutDashboard, Zap, Store as StoreIcon, ChevronDown, CheckCircle2,
   Receipt, ChefHat, Bike, ShieldCheck, TrendingUp, Users, Table2, Package,
+  Lock, AlertTriangle,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { useSession } from '@/lib/session'
 import { LoginScreen } from '@/components/auth/LoginScreen'
-import { LicenseActivationScreen, LicenseExpiredScreen, useLicenseCheck } from '@/components/auth/LicenseScreen'
+import { useInstallCheck } from '@/lib/use-install-check'
 import { GlobalShortcutBar } from '@/components/shared/GlobalShortcutBar'
 import { useShopFetch } from '@/hooks/use-shop-fetch'
 import { startSyncManager } from '@/lib/sync-manager'
@@ -29,9 +30,8 @@ const ADMIN_MODES: Mode[] = ['counter', 'direct', 'kitchen', 'history', 'zomato'
 
 export default function Home() {
   const { user, currentShop, loading } = useSession()
-  const { status: licenseStatus, expiresAt, daysLeft, recheck } = useLicenseCheck()
+  const { status: trialStatus, daysLeft } = useInstallCheck()
   const [mode, setMode] = useState<Mode>('home')
-  const [showLicenseScreen, setShowLicenseScreen] = useState(false)
 
   // ─── Start sync manager (drains outbox to Supabase when online) ───
   useEffect(() => {
@@ -62,18 +62,18 @@ export default function Home() {
     if (typeof window !== 'undefined') localStorage.removeItem('posMode')
   }
 
-  if (licenseStatus === 'loading') {
+  if (trialStatus === 'loading') {
     return (
       <div className="min-h-screen flex items-center justify-center img-bg">
         <div className="w-12 h-12 rounded-xl bg-brand-gradient animate-pulse" />
       </div>
     )
   }
-  if (licenseStatus === 'not_activated' || showLicenseScreen) {
-    return <LicenseActivationScreen onActivated={() => { recheck(); setShowLicenseScreen(false) }} />
+  if (trialStatus === 'device_locked') {
+    return <DeviceLockedScreen />
   }
-  if (licenseStatus === 'expired') {
-    return <LicenseExpiredScreen expiresAt={expiresAt || ''} onReactivate={() => setShowLicenseScreen(true)} />
+  if (trialStatus === 'expired') {
+    return <TrialExpiredScreen daysLeft={0} />
   }
   if (loading) {
     return (
@@ -95,7 +95,7 @@ export default function Home() {
     if (mode === 'zomato') return <ZomatoMode onExit={backHome} currentMode="zomato" onNavigate={enterMode} />
   }
 
-  return <HomeScreen mode={mode} onSelect={enterMode} daysLeft={daysLeft} onReactivate={() => setShowLicenseScreen(true)} />
+  return <HomeScreen mode={mode} onSelect={enterMode} daysLeft={daysLeft} />
 }
 
 const CARD_COLORS: Record<string, { gradient: string; glow: string }> = {
@@ -107,7 +107,7 @@ const CARD_COLORS: Record<string, { gradient: string; glow: string }> = {
   management: { gradient: 'from-slate-700 to-slate-900', glow: 'shadow-slate-700/40' },
 }
 
-function HomeScreen({ mode, onSelect, daysLeft, onReactivate }: { mode: Mode; onSelect: (m: Mode) => void; daysLeft: number | null; onReactivate: () => void }) {
+function HomeScreen({ mode, onSelect, daysLeft }: { mode: Mode; onSelect: (m: Mode) => void; daysLeft: number | null }) {
   const { user, currentShop, shops, selectShop, logout } = useSession()
   const shopFetch = useShopFetch()
   const [online, setOnline] = useState(true)
@@ -242,8 +242,7 @@ function HomeScreen({ mode, onSelect, daysLeft, onReactivate }: { mode: Mode; on
 
         {/* Footer */}
         <div className="flex items-center justify-center gap-4 text-[10px] text-slate-400">
-          {daysLeft !== null && <span className="flex items-center gap-1"><ShieldCheck className="w-3 h-3" /> License: {daysLeft} days</span>}
-          <button onClick={onReactivate} className="hover:text-white underline">Enter new key</button>
+          {daysLeft !== null && <span className="flex items-center gap-1"><ShieldCheck className="w-3 h-3" /> Trial: {daysLeft} days left</span>}
         </div>
       </main>
     </div>
@@ -297,6 +296,50 @@ function ShopSelectorInline({ shops, onPick, onLogout }: { shops: any[]; onPick:
           })}
         </div>
         <div className="text-center mt-6"><Button variant="ghost" size="sm" onClick={onLogout} className="text-slate-300">Sign out</Button></div>
+      </motion.div>
+    </div>
+  )
+}
+
+// ─── Trial Expired screen (shown after 365 days, no license key entry) ───
+function TrialExpiredScreen({ daysLeft }: { daysLeft: number }) {
+  return (
+    <div className="min-h-screen img-bg flex items-center justify-center p-4">
+      <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-md text-center">
+        <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', delay: 0.2 }} className="w-16 h-16 rounded-2xl bg-rose-500/20 flex items-center justify-center mx-auto mb-4">
+          <ShieldCheck className="w-8 h-8 text-rose-400" />
+        </motion.div>
+        <h1 className="text-2xl font-bold text-white mb-2">Trial Period Over</h1>
+        <p className="text-sm text-slate-400 mb-6">Your 365-day trial has ended. Please reinstall the app to start a new trial.</p>
+        <Card className="p-6 bg-slate-800/90 border-slate-700">
+          <p className="text-sm text-slate-300 mb-4">To continue using ServingSync POS, uninstall and reinstall the application. This will reset the 365-day trial.</p>
+          <Button onClick={() => window.location.reload()} className="w-full bg-gradient-to-r from-orange-500 to-rose-500 text-white">Reload App</Button>
+        </Card>
+      </motion.div>
+    </div>
+  )
+}
+
+// ─── Device Locked screen (shown when app is moved to a different device) ───
+function DeviceLockedScreen() {
+  return (
+    <div className="min-h-screen img-bg flex items-center justify-center p-4">
+      <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-md text-center">
+        <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', delay: 0.2 }} className="w-16 h-16 rounded-2xl bg-rose-500/20 flex items-center justify-center mx-auto mb-4">
+          <Lock className="w-8 h-8 text-rose-400" />
+        </motion.div>
+        <h1 className="text-2xl font-bold text-white mb-2">Device Locked</h1>
+        <p className="text-sm text-slate-400 mb-6">This copy of ServingSync POS is locked to another device and cannot be used here.</p>
+        <Card className="p-6 bg-slate-800/90 border-slate-700">
+          <div className="flex items-start gap-3 mb-4 text-left">
+            <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+            <p className="text-sm text-slate-300">
+              For security, each installation is locked to the first device it was launched on.
+              Please contact your vendor to obtain a new copy for this device.
+            </p>
+          </div>
+          <Button onClick={() => window.location.reload()} variant="outline" className="w-full border-slate-600 text-slate-300 hover:bg-slate-700">Reload</Button>
+        </Card>
       </motion.div>
     </div>
   )

@@ -1,6 +1,6 @@
 'use client'
 
-import { query, queryOne, execute, genId } from './client-db'
+import { query, queryOne, execute, genId, initDB } from './client-db'
 import { isValidKey } from './license-keys'
 
 /**
@@ -33,34 +33,60 @@ export const auth = {
 //  LICENSE
 // ═══════════════════════════════════════
 export const license = {
+  /**
+   * Validate a license key. Uses the HARDCODED list FIRST (no DB needed),
+   * so validation works even if the SQLite WASM failed to load (e.g. on a
+   * fresh APK install before the DB has been initialized).
+   */
   validate(key: string) {
     const normalized = key.trim().toUpperCase()
     const result = isValidKey(normalized)
     if (!result.valid) return { valid: false, reason: result.reason }
 
-    // Check if already activated
-    const activation = queryOne<any>('SELECT * FROM LicenseActivation WHERE key = ?', [normalized])
-    if (activation) {
-      const now = new Date()
-      const expiry = new Date(activation.expiresAt)
-      if (expiry > now) {
-        const daysLeft = Math.ceil((expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
-        return { valid: true, duration: result.duration, alreadyActivated: true, daysLeft }
+    // Hardcoded key is valid — but check DB for activation status IF DB is ready.
+    // If DB isn't initialized yet, just return valid (the activate() flow will
+    // initialize the DB and store the activation).
+    try {
+      const activation = queryOne<any>('SELECT * FROM LicenseActivation WHERE key = ?', [normalized])
+      if (activation) {
+        const now = new Date()
+        const expiry = new Date(activation.expiresAt)
+        if (expiry > now) {
+          const daysLeft = Math.ceil((expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+          return { valid: true, duration: result.duration, alreadyActivated: true, daysLeft }
+        }
+        return { valid: false, reason: 'expired' }
       }
-      return { valid: false, reason: 'expired' }
+      // Check if marked as used
+      const dbKey = queryOne<any>('SELECT * FROM LicenseKey WHERE key = ?', [normalized])
+      if (dbKey?.used) return { valid: false, reason: 'already_used' }
+    } catch (e) {
+      // DB not initialized yet — that's OK, the key is still valid per the hardcoded list.
+      // The activate() call will initialize the DB.
+      console.warn('[license.validate] DB not ready, using hardcoded validation only:', e)
     }
-    // Check if marked as used
-    const dbKey = queryOne<any>('SELECT * FROM LicenseKey WHERE key = ?', [normalized])
-    if (dbKey?.used) return { valid: false, reason: 'already_used' }
     return { valid: true, duration: result.duration }
   },
 
-  activate(key: string) {
+  /**
+   * Activate a license key. Initializes the DB if needed (async).
+   * Returns { active, activatedAt, expiresAt, daysLeft } on success,
+   * or { error } on failure.
+   */
+  async activate(key: string) {
     const normalized = key.trim().toUpperCase()
     const result = isValidKey(normalized)
     if (!result.valid) return { error: 'Invalid license key' }
 
-    // Check existing
+    // Make sure DB is initialized before we touch it.
+    try {
+      await initDB()
+    } catch (e) {
+      console.error('[license.activate] DB init failed:', e)
+      return { error: 'Failed to initialize local database. Please restart the app.' }
+    }
+
+    // Check existing activation
     const existing = queryOne<any>('SELECT * FROM LicenseActivation WHERE key = ?', [normalized])
     if (existing) {
       const now = new Date()
@@ -93,13 +119,18 @@ export const license = {
   },
 
   status() {
-    const activation = queryOne<any>('SELECT * FROM LicenseActivation LIMIT 1')
-    if (!activation) return { active: false, reason: 'not_activated' }
-    const now = new Date()
-    const expiry = new Date(activation.expiresAt)
-    if (expiry < now) return { active: false, reason: 'expired', expiresAt: activation.expiresAt }
-    return { active: true, activatedAt: activation.activatedAt, expiresAt: activation.expiresAt,
-      daysLeft: Math.ceil((expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)) }
+    try {
+      const activation = queryOne<any>('SELECT * FROM LicenseActivation LIMIT 1')
+      if (!activation) return { active: false, reason: 'not_activated' }
+      const now = new Date()
+      const expiry = new Date(activation.expiresAt)
+      if (expiry < now) return { active: false, reason: 'expired', expiresAt: activation.expiresAt }
+      return { active: true, activatedAt: activation.activatedAt, expiresAt: activation.expiresAt,
+        daysLeft: Math.ceil((expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)) }
+    } catch {
+      // DB not ready — caller should treat as not_activated
+      return { active: false, reason: 'not_activated' }
+    }
   },
 }
 

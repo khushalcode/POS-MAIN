@@ -396,9 +396,29 @@ function seedDatabase(database: Database) {
 export async function initDB(): Promise<Database> {
   if (db && initialized) return db
 
-  const SQL = await initSqlJs({
-    locateFile: (file: string) => `https://sql.js.org/dist/${file}`,
-  })
+  // Load sql.js WASM. Try local bundle FIRST (works offline + in APK/EXE),
+  // fall back to CDN only if local file is missing (e.g. dev server misconfig).
+  const wasmLocators = [
+    (file: string) => `./${file}`,                          // Capacitor (capacitor://localhost/sql-wasm.wasm)
+    (file: string) => `/${file}`,                           // Web root (next.js static export)
+    (file: string) => `https://sql.js.org/dist/${file}`,    // CDN fallback (online only)
+  ]
+
+  let SQL: any = null
+  let lastErr: any = null
+  for (const locate of wasmLocators) {
+    try {
+      SQL = await initSqlJs({ locateFile: locate })
+      break
+    } catch (e) {
+      lastErr = e
+      // try next locator
+    }
+  }
+  if (!SQL) {
+    console.error('[client-db] All sql.js WASM loaders failed:', lastErr)
+    throw lastErr || new Error('Failed to load sql.js WASM')
+  }
 
   // Try to load existing database from IndexedDB
   const existingData = await loadDB()

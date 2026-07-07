@@ -23,16 +23,33 @@ export function LicenseActivationScreen({ onActivated }: LicenseActivationScreen
   const [error, setError] = useState('')
   const [preview, setPreview] = useState<{ valid: boolean; duration?: number; reason?: string; alreadyActivated?: boolean; daysLeft?: number } | null>(null)
 
+  const [dbReady, setDbReady] = useState(false)
+  const [dbError, setDbError] = useState('')
+
+  // Initialize DB on mount — but validation works even without DB (uses hardcoded list)
+  useEffect(() => {
+    initDB()
+      .then(() => setDbReady(true))
+      .catch((e) => {
+        console.warn('[LicenseScreen] DB init failed — license validation will use hardcoded list only:', e)
+        setDbError('Local database unavailable — activation may not persist after restart.')
+      })
+  }, [])
+
   useEffect(() => {
     if (key.length < 10) { setPreview(null); return }
     const t = setTimeout(() => {
       setValidating(true)
       try {
-        // Client-side license validation — checks local SQLite
+        // Client-side license validation — uses hardcoded list FIRST,
+        // so this works even if DB/WASM isn't ready (e.g. on APK first launch).
         const result = licenseApi.validate(key)
         setPreview(result)
-      } catch { setPreview(null) } finally { setValidating(false) }
-    }, 500)
+      } catch (e) {
+        console.error('[LicenseScreen] validate error:', e)
+        setPreview(null)
+      } finally { setValidating(false) }
+    }, 300)
     return () => clearTimeout(t)
   }, [key])
 
@@ -40,13 +57,13 @@ export function LicenseActivationScreen({ onActivated }: LicenseActivationScreen
     setError('')
     setLoading(true)
     try {
-      // Client-side license activation — saves to local SQLite
-      const result = licenseApi.activate(key)
+      // Client-side license activation — now async, initializes DB internally
+      const result = await licenseApi.activate(key)
       if (result.error) {
         setError(result.error)
         return
       }
-      // Also store in localStorage as backup
+      // Also store in localStorage as backup (so user can still log in even if DB gets wiped)
       localStorage.setItem('servingsync-license', JSON.stringify({
         key: key.trim().toUpperCase(),
         activatedAt: result.activatedAt,
@@ -54,7 +71,10 @@ export function LicenseActivationScreen({ onActivated }: LicenseActivationScreen
       }))
       toast.success(`License activated! Valid for ${result.daysLeft} days.`)
       onActivated()
-    } catch (e: any) { setError(e.message || 'Activation failed') } finally { setLoading(false) }
+    } catch (e: any) {
+      console.error('[LicenseScreen] activate error:', e)
+      setError(e.message || 'Activation failed. Please check your key and try again.')
+    } finally { setLoading(false) }
   }
 
   return (
@@ -106,8 +126,13 @@ export function LicenseActivationScreen({ onActivated }: LicenseActivationScreen
                   <AlertCircle className="w-4 h-4 shrink-0" />{error}
                 </motion.div>
               )}
+              {dbError && !error && (
+                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="flex items-center gap-2 text-xs text-amber-400 bg-amber-950/50 border border-amber-800 px-3 py-2 rounded-lg">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />{dbError}
+                </motion.div>
+              )}
             </AnimatePresence>
-            <Button onClick={handleActivate} disabled={loading || !key || !preview?.valid} className="w-full h-11 bg-gradient-to-r from-orange-500 to-rose-500 hover:from-orange-600 hover:to-rose-600 text-white font-semibold">
+            <Button onClick={handleActivate} disabled={loading || !key || (preview !== null && !preview?.valid)} className="w-full h-11 bg-gradient-to-r from-orange-500 to-rose-500 hover:from-orange-600 hover:to-rose-600 text-white font-semibold">
               {loading ? <><Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> Activating…</> : <><Key className="w-4 h-4 mr-1.5" /> Activate License</>}
             </Button>
           </div>

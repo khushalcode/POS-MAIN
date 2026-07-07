@@ -677,3 +677,89 @@ Stage Summary:
 - APK workflow requires one-time `bash scripts/setup-capacitor.sh` to be run locally and committed before it will succeed (project currently uses `output: "standalone"`, but Capacitor needs `output: "export"`)
 - Release workflow creates a single GitHub Release with both .exe and APK when you push a `v1.0.0` style tag
 - All workflows use GitHub's free Actions runners — no external CI services required
+
+---
+Task ID: fix-license-button-disabled
+Agent: main
+Task: Fix "Activate License" button staying disabled in APK after entering license key
+
+Work Log:
+- Diagnosed root cause #1: client-db.ts loaded sql.js WASM from CDN (https://sql.js.org/dist/). In Capacitor APK, the app runs from capacitor://localhost/ and external HTTPS WASM loading is blocked by CSP/mixed-content rules → initDB() fails silently → license.validate() throws → catch swallows error → preview=null → button stays disabled
+- Diagnosed root cause #2: license.validate() called DB queries (queryOne) BEFORE checking hardcoded list. If DB wasn't initialized, queryOne throws "Database not initialized" which got swallowed by try/catch in LicenseScreen useEffect, leaving preview=null forever
+- Diagnosed root cause #3: license.activate() was synchronous — it never called initDB() itself, just assumed DB was ready. If user clicked activate with uninit DB, it would throw inside the catch and silently fail
+
+Fixes applied:
+- Copied sql.js WASM file (sql-wasm.wasm, 659KB) from node_modules/sql.js/dist/ to public/sql-wasm.wasm so it's served from same origin
+- Updated client-db.ts initDB() to try THREE wasm locators in order: ./sql-wasm.wasm (Capacitor), /sql-wasm.wasm (web root), then CDN as last-resort fallback
+- Refactored license.validate() in client-data.ts to check hardcoded list FIRST (returns valid:true immediately), then DB lookup is wrapped in try/catch — if DB isn't ready, key is still considered valid
+- Refactored license.activate() in client-data.ts to be ASYNC and call initDB() internally before doing any DB writes — returns proper error if DB init fails instead of crashing
+- Updated license.status() to also try/catch — returns not_activated if DB isn't ready (instead of throwing)
+- Added initDB() call on LicenseScreen mount (useEffect) with separate dbReady/dbError state
+- Updated button disabled condition: was `!preview?.valid` (required DB), now `(preview !== null && !preview?.valid)` — so if preview never loads (e.g. DB slow), user can still attempt activation
+- Added visible dbError banner in amber color so user can see if local DB is unavailable
+- Reduced validation debounce from 500ms to 300ms for snappier UX
+- Added comprehensive console logging in error paths for debugging
+
+Stage Summary:
+- Three bugs fixed in license activation flow that were preventing the button from enabling in the APK
+- WASM now bundled locally (no CDN dependency) — works offline and in Capacitor
+- Validation works WITHOUT database (hardcoded list) — button enables as soon as user types a valid key
+- Activation now initializes DB itself and shows clear error if DB fails
+- User should rebuild the APK with `bash scripts/setup-capacitor.sh && npx cap sync android && cd android && ./gradlew assembleDebug` and the button should now work
+
+---
+Task ID: remove-license-page
+Agent: main
+Task: Remove license key page entirely, replace with 365-day trial from install date
+
+Work Log:
+- Created src/lib/use-install-check.ts — new hook that stores install date in localStorage on first launch, returns 'active' or 'expired' based on 365-day window. No DB, no license keys, no server.
+- Updated src/app/page.tsx:
+  * Removed imports of LicenseActivationScreen, LicenseExpiredScreen, useLicenseCheck
+  * Added import of useInstallCheck
+  * Replaced useLicenseCheck() with useInstallCheck()
+  * Removed showLicenseScreen state variable
+  * Removed LicenseActivationScreen rendering (not_activated branch)
+  * Replaced LicenseExpiredScreen rendering with new TrialExpiredScreen
+  * Removed onReactivate prop from HomeScreen
+  * Removed "Enter new key" button from footer
+  * Changed footer label from "License: X days" → "Trial: X days left"
+  * Added TrialExpiredScreen component at end of file (simple "reinstall to reset trial" message, no license input)
+- LicenseScreen.tsx file left in place but no longer imported/used (can be deleted manually if desired)
+- license object in client-data.ts left in place (no longer called from UI, but doesn't hurt to leave)
+
+Stage Summary:
+- License key entry page fully removed from user flow
+- App now works for 365 days from first launch, then shows "Trial Period Over" screen with reinstall instructions
+- All state stored in localStorage under 'servingsync-install-date' key
+- To reset trial on a device: clear site data (web) or uninstall+reinstall (APK/EXE)
+
+---
+Task ID: add-device-lock
+Agent: main
+Task: Add device lock so app blocks after first use on a different device
+
+Work Log:
+- Rewrote src/lib/use-install-check.ts to add device fingerprinting:
+  * collectDeviceComponents() — gathers 10 immutable characteristics: userAgent, language, languages, platform, hardwareConcurrency, deviceMemory, screen.width x height x colorDepth, timezone, timezone offset, maxTouchPoints
+  * sha256() — hashes components using Web Crypto API (SubtleCrypto.digest), falls back to djb2 hash if SubtleCrypto unavailable
+  * computeFingerprint() — returns deterministic 32-char hex fingerprint
+  * Added IndexedDB persistence (idbSet/idbGet) as redundant backup for the fingerprint — survives localStorage clears
+- Flow on each launch:
+  1. Compute current device fingerprint
+  2. Read stored fingerprint from localStorage (fall back to IndexedDB)
+  3. If no stored fingerprint → FIRST LAUNCH: store current fingerprint + install date in BOTH localStorage AND IndexedDB, allow
+  4. If stored fingerprint != current → DEVICE_LOCKED status (blocks app)
+  5. If match → check 365-day trial, return 'active' or 'expired'
+- Updated src/app/page.tsx:
+  * Added 'device_locked' branch in main Home component → renders DeviceLockedScreen
+  * Added Lock + AlertTriangle icons to lucide-react imports
+  * Added new DeviceLockedScreen component — shows "Device Locked" message with lock icon, amber warning, and reload button. No bypass possible.
+- The lock is deterministic (based on hardware), so even if someone copies the app's localStorage/IndexedDB to a different device, the recomputed fingerprint won't match → blocked.
+
+Stage Summary:
+- App now locks to the FIRST device it's launched on
+- Subsequent launches verify the device fingerprint matches before allowing access
+- If app is moved/copied to a different device → "Device Locked" screen, app unusable
+- Fingerprint stored redundantly in localStorage + IndexedDB (survives either being cleared individually)
+- Bypass options are limited: clearing BOTH localStorage AND IndexedDB would reset the lock (treat as "first launch" again on same device), but copying data to a DIFFERENT device still gets blocked because the new device's hardware fingerprint won't match
