@@ -44,9 +44,6 @@ jobs:
         env:
           npm_config_build_from_source: 'false'
 
-      - name: Fix sharp native binary for Windows
-        run: npm install --no-save sharp --os=win32 --cpu=x64
-
       - name: Generate Windows .ico icon
         run: node scripts/gen-icon.js
 
