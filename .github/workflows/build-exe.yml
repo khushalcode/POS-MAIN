@@ -1,4 +1,4 @@
-name: Build Windows .exe
+﻿name: Build Windows .exe
 
 # ─────────────────────────────────────────────────────────────
 # Builds the ServingSync POS Windows installer (.exe) using
@@ -54,10 +54,14 @@ jobs:
           # Skip env validation if your build expects secrets
           SKIP_ENV_VALIDATION: 'true'
 
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
       - name: Build Electron .exe installer
         run: npx electron-builder --win --x64
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}   # needed if --publish is set
+          GYP_MSVS_VERSION: '2022'
 
       - name: Upload .exe artifact
         uses: actions/upload-artifact@v4
